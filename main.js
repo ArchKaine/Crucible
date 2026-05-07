@@ -1,4 +1,4 @@
-const Bridge = require('./core/bridge');
+const Bridge = require('./bridge');
 
 const LLM_ENDPOINT = 'http://127.0.0.1:11434/api/generate';
 const MODEL_NAME = 'llama3';
