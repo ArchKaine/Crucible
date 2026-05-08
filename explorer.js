@@ -1,26 +1,59 @@
 const fs = require('fs').promises;
+const { existsSync } = require('fs');
 const path = require('path');
 
 const Explorer = {
-    async readFile(relativeFilePath) {
-        const fullPath = path.resolve(relativeFilePath);
-        return await fs.readFile(fullPath, 'utf8');
+    // --- SECURE READ: Prevents ingestion of massive binaries ---
+    async readFile(targetPath) {
+        const resolved = path.resolve(targetPath);
+        const stats = await fs.stat(resolved);
+        
+        // 500KB Safety Limit: Prevents the 14B model from choking on data bloat
+        if (stats.size > 512000) {
+            throw new Error(`File overflow: ${path.basename(resolved)} is too large for the context buffer.`);
+        }
+        
+        return await fs.readFile(resolved, 'utf8');
     },
 
-    async writeFile(relativeFilePath, content) {
-        const fullPath = path.resolve(relativeFilePath);
-        await fs.mkdir(path.dirname(fullPath), { recursive: true });
-        return await fs.writeFile(fullPath, content, 'utf8');
+    // --- ATOMIC WRITE: Ensures directory existence before committing matter ---
+    async writeFile(targetPath, content) {
+        const resolved = path.resolve(targetPath);
+        await fs.mkdir(path.dirname(resolved), { recursive: true });
+        return await fs.writeFile(resolved, content, 'utf8');
     },
 
-    async listFiles(dir = './', ignore = ['node_modules', '.git', 'brain']) {
-        const entries = await fs.readdir(dir, { withFileTypes: true });
-        const files = await Promise.all(entries.map((res) => {
-            const resPath = path.resolve(dir, res.name);
-            if (ignore.some(i => res.name.includes(i))) return [];
-            return res.isDirectory() ? Explorer.listFiles(resPath, ignore) : resPath;
-        }));
-        return Array.prototype.concat(...files);
+    // --- STRUCTURED MAPPING: Delivers a mechanical tree to the UI ---
+    async listFiles(dir = process.cwd(), excludes = ['node_modules', '.git', 'brain', 'dist']) {
+        const resolvedDir = path.resolve(dir);
+        if (!existsSync(resolvedDir)) throw new Error("Directory sector not found.");
+
+        const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
+        
+        const list = entries
+            .filter(e => !excludes.includes(e.name))
+            .map(e => ({
+                name: e.name,
+                path: path.join(resolvedDir, e.name),
+                isDirectory: e.isDirectory(),
+                ext: e.name.split('.').pop()
+            }))
+            // Sort: Directories first, then alphabetical
+            .sort((a, b) => b.isDirectory - a.isDirectory || a.name.localeCompare(b.name));
+
+        return {
+            currentDir: resolvedDir,
+            entries: list
+        };
+    },
+
+    // --- SHADOW CLONE: Rapidly duplicates structures for the Shadow Forge ---
+    async cloneToShadow(sourcePath, shadowDir) {
+        const fileName = path.basename(sourcePath);
+        const target = path.join(shadowDir, fileName);
+        const content = await this.readFile(sourcePath);
+        await this.writeFile(target, content);
+        return target;
     }
 };
 
