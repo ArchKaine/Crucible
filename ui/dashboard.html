@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Crucible IDE | Industrial Forge</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            color: #666;
+            font-family: 'Segoe UI', sans-serif;
+            display: grid;
+            grid-template-areas:
+                'sidebar editor output'
+                'sidebar terminal terminal';
+            grid-template-columns: 280px 1fr 1fr;
+            grid-template-rows: 1fr 350px;
+            height: 100vh;
+            overflow: hidden;
+            transition: grid-template-columns 0.1s ease-out, grid-template-rows 0.1s ease-out;
+        }
+
+        /* PHYSICS SHIELD: Disables transitions during drag */
+        body.dragging {
+            transition: none;
+            user-select: none;
+        }
+        body.dragging .editor-container, 
+        body.dragging .output-container, 
+        body.dragging .terminal-container {
+            pointer-events: none;
+        }
+
+        /* RESIZER MECHANICAL OVERLAYS */
+        .resizer-v {
+            width: 4px;
+            cursor: col-resize;
+            background: #111;
+            z-index: 100;
+            transition: background 0.2s;
+        }
+        .resizer-v:hover, .resizer-v.active { background: #333; }
+        #resizer-sb { grid-column: 1; grid-row: 1 / span 2; justify-self: end; margin-right: -2px; }
+        #resizer-ed { grid-column: 2; grid-row: 1; justify-self: end; margin-right: -2px; }
+
+        .resizer-h {
+            height: 4px;
+            cursor: row-resize;
+            background: #111;
+            z-index: 100;
+            grid-column: 2 / span 2;
+            grid-row: 1;
+            align-self: end;
+            margin-bottom: -2px;
+            transition: background 0.2s;
+        }
+        .resizer-h:hover, .resizer-h.active { background: #333; }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: #0a0a0a;
+            border-right: 1px solid #1a1a1a;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar h3 {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #333;
+            margin: 0 0 15px 0;
+            text-transform: uppercase;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .toolbar button {
+            flex: 1;
+            padding: 4px;
+            font-size: 10px;
+        }
+
+        #pathUI { background: #050505; border: 1px solid #111; margin-bottom: 10px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
+        #breadcrumb { display: flex; gap: 5px; font-size: 10px; color: #444; flex-wrap: wrap; text-transform: uppercase; cursor: pointer; line-height: 1.4; }
+        #breadcrumb span:hover { color: #888; }
+        #manualPath { background: #000; border: 1px solid #1a1a1a; color: #666; font-size: 11px; padding: 4px; outline: none; width: 100%; box-sizing: border-box; }
+
+        #searchContainer { background: #080808; border: 1px solid #1a1a1a; margin-bottom: 10px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
+        #searchResults { max-height: 200px; overflow-y: auto; font-size: 11px; border-top: 1px solid #111; display: none; }
+        .search-item { padding: 4px; cursor: pointer; border-bottom: 1px solid #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .search-item:hover { background: #111; color: #ccc; }
+        .search-meta { font-size: 9px; color: #444; margin-right: 5px; }
+
+        #fileList {
+            list-style: none;
+            padding: 0;
+            font-size: 12px;
+            overflow-y: auto;
+            flex-grow: 1;
+            margin: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #1a1a1a #000;
+        }
+
+        #fileList ul {
+            list-style: none;
+            padding-left: 14px;
+            margin: 0;
+            display: none;
+            border-left: 1px solid #111;
+        }
+
+        #fileList ul.expanded {
+            display: block;
+        }
+
+        .fs-item {
+            padding: 4px 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            user-select: none;
+            color: #888;
+            border-radius: 2px;
+        }
+
+        .fs-item:hover {
+            background: #111;
+            color: #ccc;
+        }
+
+        .caret {
+            width: 12px;
+            text-align: center;
+            font-size: 10px;
+            color: #444;
+            transition: transform 0.1s;
+            display: inline-block;
+        }
+
+        .caret.open {
+            transform: rotate(90deg);
+            color: #888;
+        }
+
+        .item-icon {
+            opacity: 0.6;
+            font-style: normal;
+        }
+
+        .editor-container {
+            grid-area: editor;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #1a1a1a;
+            min-width: 0;
+        }
+
+        .output-container {
+            grid-area: output;
+            background: #050505;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #1a1a1a;
+            min-width: 0;
+        }
+
+        .controls {
+            background: #0a0a0a;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid #1a1a1a;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #tabBar {
+            display: flex;
+            background: #050505;
+            border-bottom: 1px solid #1a1a1a;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        #tabBar::-webkit-scrollbar { display: none; }
+
+        .tab {
+            padding: 8px 15px;
+            font-size: 11px;
+            color: #444;
+            background: #0a0a0a;
+            border-right: 1px solid #1a1a1a;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tab.active {
+            background: #000;
+            color: #aaa;
+            border-bottom: 1px solid #569cd6;
+        }
+        .tab:hover {
+            color: #888;
+        }
+        .tab-close {
+            font-size: 10px;
+            opacity: 0.3;
+            padding: 2px 5px;
+        }
+        .tab-close:hover {
+            opacity: 1;
+            color: #f44336;
+        }
+
+        #codeEditor, #outputEditor {
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        #statusBar {
+            flex-grow: 1;
+            background: #000;
+            height: 26px;
+            border: 1px solid #1a1a1a;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 10px;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #progressFill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: #111;
+            width: 0%;
+            transition: width 0.3s;
+            z-index: 1;
+            border-right: 1px solid #222;
+        }
+
+        #statusText {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-container {
+            grid-area: terminal;
+            background: #000;
+            border-top: 1px solid #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+            position: relative;
+        }
+
+        #terminalBox {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        input[type="text"] {
+            background: #000;
+            border: 1px solid #222;
+            color: #888;
+            padding: 6px;
+            outline: none;
+            font-size: 12px;
+        }
+
+        input[type="checkbox"] {
+            accent-color: #555;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        button, select {
+            background: #111;
+            color: #555;
+            border: 1px solid #222;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+            outline: none;
+        }
+
+        button:hover, select:hover {
+            background: #222;
+            color: #eee;
+            border-color: #444;
+        }
+
+        button.active {
+            background: #222;
+            color: #fff;
+            border-color: #444;
+        }
+        
+        /* SIDEBAR TABS & VIEWS */
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid #1a1a1a;
+            margin: -10px -10px 10px -10px; /* Offset sidebar padding */
+            background: #000;
+        }
+        .sidebar-tabs button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-right: 1px solid #1a1a1a;
+            border-bottom: 2px solid transparent;
+            padding: 8px 0;
+            color: #555;
+            font-size: 10px;
+        }
+        .sidebar-tabs button.active {
+            color: #ccc;
+            border-bottom: 2px solid #569cd6;
+            background: #050505;
+        }
+        .sidebar-view {
+            display: none;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .sidebar-view.active {
+            display: flex;
+        }
+
+        /* GIT UI COMPONENTS */
+        .git-controls input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #000;
+            border: 1px solid #222;
+            color: #ccc;
+            padding: 6px;
+            font-family: inherit;
+            font-size: 11px;
+        }
+        .git-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+        .git-header {
+            font-size: 10px;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 10px 0 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .git-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px;
+            cursor: pointer;
+            border-bottom: 1px solid #111;
+        }
+        .git-item:hover {
+            background: #111;
+        }
+        .git-status-badge {
+            font-size: 9px;
+            padding: 2px 4px;
+            border-radius: 2px;
+            background: #222;
+        }
+        .status-M { color: #f1c40f; } /* Modified */
+        .status-A { color: #2ecc71; } /* Added */
+        .status-D { color: #e74c3c; } /* Deleted */
+        .status-U { color: #3498db; } /* Untracked */
+        
+        /* SETTINGS MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: #0a0a0a; border: 1px solid #222; width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; }
+        .modal-header h3 { margin: 0; color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .close-btn { cursor: pointer; color: #666; font-size: 14px; background: none; border: none; padding: 0; }
+        .close-btn:hover { color: #f44336; }
+        .settings-group { display: flex; flex-direction: column; gap: 8px; }
+        .settings-group label { font-size: 10px; color: #666; text-transform: uppercase; }
+        .settings-group select, .settings-group input[type="number"], .settings-group input[type="text"] { background: #000; border: 1px solid #222; color: #ccc; padding: 6px; font-size: 11px; outline: none; font-family: inherit; }
+        .settings-group select:focus, .settings-group input:focus { border-color: #444; }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #1a1a1a; padding-top: 15px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="mainSidebar">
+        <div class="sidebar-tabs">
+            <button id="tab-explorer" class="active" onclick="switchSidebar('explorer')">EXPLORER</button>
+            <button id="tab-git" onclick="switchSidebar('git')">SOURCE CONTROL</button>
+        </div>
+
+        <div id="view-explorer" class="sidebar-view active">
+            <div class="toolbar">
+                <button onclick="goBack()" title="Back"> < </button>
+                <button onclick="goForward()" title="Forward"> > </button>
+                <button onclick="goUp()" title="Parent Directory"> ^ </button>
+                <button onclick="loadTree(currentDirectory)" title="Refresh Tree">⟳</button>
+            </div>
+
+            <div id="pathUI">
+                <div id="breadcrumb"></div>
+                <input type="text" id="manualPath" placeholder="Navigate to..." onkeydown="if(event.key==='Enter') loadTree(this.value)">
+            </div>
+
+            <div class="toolbar">
+                <button onclick="renameItem()" title="Rename Selection">REN</button>
+                <button onclick="deleteItem()" title="Delete Selection">DEL</button>
+                <button onclick="createNewFile()" title="New File">✚ FILE</button>
+                <button onclick="createNewFolder()" title="New Folder">✚ DIR</button>
+            </div>
+
+            <div id="searchContainer">
+                <div style="display: flex; gap: 4px;">
+                    <input type="text" id="globalSearchInput" placeholder="GLOBAL GREP..." style="flex-grow: 1;" onkeydown="if(event.key==='Enter') runGlobalSearch()">
+                    <button onclick="runGlobalSearch()">SCAN</button>
+                </div>
+                <div id="searchResults"></div>
+            </div>
+
+            <div id="fileList"></div>
+        </div>
+
+        <div id="view-git" class="sidebar-view">
+            <div class="git-controls">
+                <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
+                <input type="text" id="commitMessage" placeholder="Commit message...">
+                <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
+                <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
+                <button onclick="setGitRemote()" style="width: 100%; margin-top: 5px; color: #9b59b6;">SET REMOTE</button>
+            </div>
+            
+            <div class="toolbar" style="margin-top: 10px;">
+                <button onclick="gitAction('pull')" title="Pull from Remote">PULL ↓</button>
+                <button onclick="gitAction('push')" title="Push to Remote">PUSH ↑</button>
+                <button onclick="refreshGitStatus()" title="Refresh Status">⟳</button>
+            </div>
+
+            <div id="gitStatusList" class="git-list">
+                </div>
+        </div>
+    </div>
+
+    <div class="resizer-v" id="resizer-sb"></div>
+    <div class="resizer-v" id="resizer-ed"></div>
+    <div class="resizer-h" id="resizer-tm"></div>
+
+    <div class="editor-container">
+        <div class="controls">
+            <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
+            
+            <button onclick="saveFile()">Save</button>
+            <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
+
+            <div id="statusBar">
+                <div id="progressFill"></div>
+                <div id="statusText">
+                    <span id="coreStatus">System Operational</span>
+                    <span id="corePercent">0%</span>
+                </div>
+            </div>
+        </div>
+        <div id="tabBar"></div>
+        <div id="codeEditor"></div>
+    </div>
+    <div id="shadowStatus" title="Shadow Forge Integrity"></div>
+    <div class="output-container">
+        <div class="controls">
+            
+            <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
+            
+            <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
+            <button onclick="askAI()" id="execBtn">Execute</button>
+            
+            <div id="viewportControls" style="display: none; gap: 5px;">
+                <button onclick="setViewport('100%')">Desktop</button>
+                <button onclick="setViewport('768px')">Tablet</button>
+                <button onclick="setViewport('375px')">Mobile</button>
+                <button onclick="togglePreviewBackground()" style="color: #9b59b6;">BG Toggle</button>
+            </div>
+
+            <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
+            <button onclick="applyDiffMerge()" id="mergeBtn" style="color: #2ecc71;">Merge</button>
+            
+            <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
+        </div>
+        
+        <div id="outputEditor"></div>
+        <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
+    </div>
+    
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>System Preferences</h3>
+                <button class="close-btn" onclick="closeSettings()">✕</button>
+            </div>
+            
+            <div class="settings-group">
+                <label>Editor Theme</label>
+                <select id="set-theme">
+                    <option value="chaos">Chaos</option>
+                    <option value="industrial">Industrial</option>
+                    <option value="twilight">Twilight</option>
+                    <option value="tomorrow">Tomorrow Night</option>
+                </select>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                    <label>Editor Font Size (px)</label>
+                    <input type="number" id="set-ed-font" value="14" min="8" max="24">
+                </div>
+                <div class="settings-group" style="flex: 1;">
+                    <label>Terminal Font Size (px)</label>
+                    <input type="number" id="set-tm-font" value="13" min="8" max="24">
+                </div>
+            </div>
+            
+            <div class="settings-group">
+                <label>GitHub PAT (Local Auth)</label>
+                <input type="text" id="set-pat" placeholder="ghp_...">
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="closeSettings()" style="background: transparent; border: 1px solid #222;">Cancel</button>
+                <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71;">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="terminal-container">
+        <div id="terminalBox"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+
+    <script>
+        let currentOpenPath = '', currentDirectory = '';
+        let openTabs = {};
+        let navHistory = [], navIndex = -1;
+        
+        const getSyntaxMode = (fileName) => {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const modeMap = {
+                'js': 'javascript',
+                'html': 'html',
+                'css': 'css',
+                'json': 'json',
+                'md': 'markdown',
+                'sh': 'sh'
+            };
+            return `ace/mode/${modeMap[ext] || 'text'}`; // Defaults to plain text if unknown
+        };
+
+        const themeMap = {
+            chaos: {
+                ace: "ace/theme/chaos",
+                term: { background: '#000000', foreground: '#888888', cursor: '#569cd6', selection: '#222222' }
+            },
+            industrial: {
+                ace: "ace/theme/mono_industrial",
+                term: { background: '#0a0a0a', foreground: '#777777', cursor: '#444444', selection: '#1a1a1a' }
+            },
+            twilight: {
+                ace: "ace/theme/twilight",
+                term: { background: '#141414', foreground: '#f8f8f8', cursor: '#8f9d6a', selection: '#323232' }
+            },
+            tomorrow: {
+                ace: "ace/theme/tomorrow_night_eighties",
+                term: { background: '#2d2d2d', foreground: '#cccccc', cursor: '#6699cc', selection: '#515151' }
+            }
+        };
+
+        const editor = ace.edit("codeEditor");
+        const outputEditor = ace.edit("outputEditor");
+
+        [editor, outputEditor].forEach(ed => {
+            ed.setTheme(themeMap.chaos.ace);
+            ed.setFontSize(14);
+            ed.setOption("fixedWidthGutter", true);
+            ed.setOption("wrap", "free");
+        });
+
+        outputEditor.setReadOnly(false);
+
+        const term = new Terminal({
+            theme: themeMap.chaos.term,
+            fontFamily: 'Consolas, "Courier New", monospace',
+            fontSize: 13,
+            cursorBlink: true,
+            allowProposedApi: true
+        });
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminalBox'));
+        fitAddon.fit();
+
+        const socket = new WebSocket(`ws://${window.location.host}`);
+
+        socket.onopen = () => {
+            term.write('\x1b[34m[CRUCIBLE BASH LINK ACTIVE]\x1b[0m\r\n');
+            sendResize();
+        };
+
+        socket.onmessage = async (ev) => {
+            let rawData = ev.data;
+            if (rawData instanceof Blob) rawData = await rawData.text();
+            try {
+                const msg = JSON.parse(rawData);
+                if (msg.type === 'progress') {
+                    const fill = document.getElementById('progressFill');
+                    const status = document.getElementById('coreStatus');
+                    const percent = document.getElementById('corePercent');
+                    fill.style.width = msg.data.percent + '%';
+                    status.innerText = `${msg.data.percent === 100 ? 'SUCCESS' : 'SYNCING'}: ${msg.data.file}`;
+                    percent.innerText = msg.data.percent + '%';
+                }
+            } catch (e) {
+                term.write(rawData);
+            }
+        };
+
+        term.onData(data => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'input', data: data }));
+            }
+        });
+
+        function sendResize() {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+            }
+        }
+
+        window.onresize = () => {
+            fitAddon.fit();
+            sendResize();
+        };
+
+        // --- RECALIBRATED: Match the CSS grid array ---
+        function initResizers() {
+            const body = document.body;
+            const saved = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
+            body.style.gridTemplateColumns = saved.cols;
+            body.style.gridTemplateRows = saved.rows;
+
+            const startDragging = (id, type) => {
+                const resizer = document.getElementById(id);
+                resizer.onmousedown = (e) => {
+                    body.classList.add('dragging');
+                    resizer.classList.add('active');
+                    
+                    document.onmousemove = (moveE) => {
+                        const cols = body.style.gridTemplateColumns.split(' ');
+                        const rows = body.style.gridTemplateRows.split(' ');
+
+                        if (type === 'sidebar') {
+                            cols[0] = Math.max(40, moveE.clientX) + 'px';
+                        } else if (type === 'editor') {
+                            const sidebarW = parseInt(cols[0]);
+                            cols[1] = Math.max(50, moveE.clientX - sidebarW) + 'px';
+                        } else if (type === 'terminal') {
+                            rows[1] = Math.max(50, window.innerHeight - moveE.clientY) + 'px';
+                        }
+
+                        body.style.gridTemplateColumns = cols.join(' ');
+                        body.style.gridTemplateRows = rows.join(' ');
+                        [editor, outputEditor].forEach(ed => ed.resize());
+                        fitAddon.fit();
+                    };
+                    
+                    document.onmouseup = () => {
+                        body.classList.remove('dragging');
+                        resizer.classList.remove('active');
+                        document.onmousemove = null;
+                        document.onmouseup = null;
+                        localStorage.setItem('crucible-layout', JSON.stringify({
+                            cols: body.style.gridTemplateColumns,
+                            rows: body.style.gridTemplateRows
+                        }));
+                    };
+                };
+            };
+
+            startDragging('resizer-sb', 'sidebar');
+            startDragging('resizer-ed', 'editor');
+            startDragging('resizer-tm', 'terminal');
+        }
+
+        async function runGlobalSearch() {
+            const query = document.getElementById('globalSearchInput').value;
+            const resultsBox = document.getElementById('searchResults');
+            if (!query) { resultsBox.style.display = 'none'; return; }
+            resultsBox.innerHTML = '<div class="search-item">Scanning Forge...</div>';
+            resultsBox.style.display = 'block';
+            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&dir=${encodeURIComponent(currentDirectory)}`);
+            const data = await res.json();
+            resultsBox.innerHTML = '';
+            if (data.length === 0) {
+                resultsBox.innerHTML = '<div class="search-item">No matches in current sector.</div>';
+            } else {
+                data.forEach(match => {
+                    const item = document.createElement('div');
+                    item.className = 'search-item';
+                    const fileName = match.path.split(/[\\/]/).pop();
+                    item.innerHTML = `<span class="search-meta">${fileName}:${match.line}</span> ${match.text}`;
+                    item.onclick = () => { openFile(match.path).then(() => { editor.gotoLine(match.line, 0, true); editor.focus(); }); };
+                    resultsBox.appendChild(item);
+                });
+            }
+        }
+
+        async function loadTree(dir = '', parentElement = null, skipHistory = false) {
+            const res = await fetch(`/api/files?dir=${encodeURIComponent(dir)}`);
+            const data = await res.json();
+            if (!parentElement) {
+                currentDirectory = data.currentDir;
+                document.getElementById('manualPath').value = currentDirectory;
+                updateBreadcrumbs(currentDirectory);
+                if (!skipHistory) {
+                    if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
+                    navHistory.push(currentDirectory);
+                    navIndex++;
+                }
+                parentElement = document.getElementById('fileList');
+                parentElement.innerHTML = '';
+            }
+            const ul = document.createElement('ul');
+            ul.classList.add('expanded');
+            data.entries.forEach(e => {
+                const li = document.createElement('li');
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'fs-item';
+                if (e.isDirectory) {
+                    itemDiv.innerHTML = `<span class="caret">▶</span> <span class="item-icon">📁</span> ${e.name}`;
+                    itemDiv.onclick = (ev) => {
+                        ev.stopPropagation();
+                        const childUl = li.querySelector('ul');
+                        if (childUl) {
+                            childUl.classList.toggle('expanded');
+                            itemDiv.querySelector('.caret').classList.toggle('open');
+                        } else {
+                            itemDiv.querySelector('.caret').classList.add('open');
+                            loadTree(e.path, li, true);
+                        }
+                    };
+                    itemDiv.ondblclick = (ev) => { ev.stopPropagation(); loadTree(e.path); };
+                } else {
+                    itemDiv.innerHTML = `<span style="width:12px; display:inline-block;"></span><input type="checkbox" class="context-cb" value="${e.path}" onclick="event.stopPropagation()"> <span class="item-icon">📄</span> ${e.name}`;
+                    itemDiv.onclick = (ev) => { ev.stopPropagation(); openFile(e.path); };
+                }
+                li.appendChild(itemDiv);
+                ul.appendChild(li);
+            });
+            parentElement.appendChild(ul);
+        }
+
+        function updateBreadcrumbs(dir) {
+            const bc = document.getElementById('breadcrumb');
+            bc.innerHTML = '';
+            const parts = dir.split(/[\\/]/).filter(p => p);
+            let runningPath = dir.startsWith('/') ? '' : '';
+            const rootSpan = document.createElement('span');
+            rootSpan.innerText = 'ROOT / ';
+            rootSpan.onclick = () => loadTree('/');
+            bc.appendChild(rootSpan);
+            parts.forEach((p, i) => {
+                runningPath += '/' + p;
+                const s = document.createElement('span');
+                s.innerText = p + (i < parts.length - 1 ? ' / ' : '');
+                const target = runningPath;
+                s.onclick = () => loadTree(target);
+                bc.appendChild(s);
+            });
+        }
+
+        function goBack() { if (navIndex > 0) { navIndex--; loadTree(navHistory[navIndex], null, true); } }
+        function goForward() { if (navIndex < navHistory.length - 1) { navIndex++; loadTree(navHistory[navIndex], null, true); } }
+        function goUp() { const parent = currentDirectory.split(/[\\/]/).slice(0, -1).join('/') || '/'; loadTree(parent); }
+
+        async function renameItem() {
+            if (!currentOpenPath) return alert("Select active file.");
+            const oldName = currentOpenPath.split(/[\\/]/).pop();
+            const newName = prompt("Rename to:", oldName);
+            if (!newName || newName === oldName) return;
+            const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join('/');
+            const newPath = `${parentDir}/${newName}`;
+            await fetch('/api/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldPath: currentOpenPath, newPath: newPath }) });
+            delete openTabs[currentOpenPath];
+            const tabElement = document.getElementById(`tab-${btoa(currentOpenPath).replace(/=/g, '')}`);
+            if (tabElement) tabElement.remove();
+            loadTree(currentDirectory);
+            openFile(newPath);
+        }
+
+        async function deleteItem() {
+            if (!currentOpenPath) return alert("Select active file.");
+            if (!confirm(`Purge ${currentOpenPath}?`)) return;
+            await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentOpenPath }) });
+            closeTab(currentOpenPath);
+            loadTree(currentDirectory);
+        }
+
+        async function createNewFolder() {
+            const name = prompt("Directory Name:");
+            if (!name) return;
+            await fetch('/api/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `${currentDirectory}/${name}` }) });
+            loadTree(currentDirectory);
+        }
+
+        async function openFile(path) {
+            const fileName = path.split(/[\\/]/).pop();
+            if (openTabs[path]) { switchTab(path); return; }
+            
+            const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
+            const content = await res.text();
+            
+            // --- DYNAMIC SYNTAX DETECTION ---
+            const syntaxMode = getSyntaxMode(fileName);
+            const session = ace.createEditSession(content, syntaxMode);
+            session.setUseWrapMode(editor.getOption("wrap") !== "off");
+
+            // --- JAVASCRIPT LINTER UPGRADE (Only fires for JS files) ---
+            if (syntaxMode === 'ace/mode/javascript') {
+                session.on("changeMode", function() {
+                    if (session.$worker) {
+                        session.$worker.send("changeOptions", { esversion: 11, asi: true });
+                    }
+                });
+            }
+
+            openTabs[path] = { session, name: fileName };
+            createTabUI(path, fileName);
+            switchTab(path);
+            term.write(`\r\n\x1b[90m[SYSTEM] Protocol Opened: ${fileName} [${syntaxMode.split('/').pop().toUpperCase()}]\x1b[0m\r\n`);
+        }
+
+        function createTabUI(path, name) {
+            const tabBar = document.getElementById('tabBar');
+            const tab = document.createElement('div');
+            tab.className = 'tab';
+            tab.id = `tab-${btoa(path).replace(/=/g, '')}`;
+            tab.innerHTML = `<span onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
+            tabBar.appendChild(tab);
+        }
+
+        function switchTab(path) {
+            currentOpenPath = path;
+            editor.setSession(openTabs[path].session);
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
+            if (activeTab) activeTab.classList.add('active');
+            editor.focus();
+        }
+
+        function closeTab(path) {
+            const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
+            if (tabElement) tabElement.remove();
+            delete openTabs[path];
+            const remaining = Object.keys(openTabs);
+            if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
+            else { currentOpenPath = ''; editor.setValue('', -1); }
+        }
+        
+        async function createNewFile() {
+            const name = prompt("File Name (include extension, e.g., module.js):");
+            if (!name) return;
+            
+            const newPath = `${currentDirectory}/${name}`;
+            
+            // Push an empty string to the write endpoint to allocate the file
+            await fetch('/api/write', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ path: newPath, content: '' }) 
+            });
+            
+            // Refresh the tree and immediately open the new file in the buffer
+            loadTree(currentDirectory);
+            openFile(newPath);
+        }
+        
+        async function saveFile() {
+            if (!currentOpenPath) return;
+            await fetch('/api/write', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentOpenPath, content: editor.getValue() }) });
+            term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
+        }
+
+        async function startIndexing() {
+            document.getElementById('coreStatus').innerText = "Initiating Targeted Sync...";
+            const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
+            await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selectedFiles: contextFiles }) });
+        }
+
+        function toggleWrap() {
+            const wrapping = editor.getOption("wrap") === "off";
+            [editor, outputEditor].forEach(ed => ed.setOption("wrap", wrapping ? "free" : "off"));
+            document.getElementById('wrapToggle').classList.toggle('active', wrapping);
+            Object.values(openTabs).forEach(tab => tab.session.setUseWrapMode(wrapping));
+        }
+
+        async function askAI() {
+            const input = document.getElementById('aiInput');
+            const directive = input.value;
+            if (!directive) return;
+            const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
+            input.value = 'PROCESSING...';
+            try {
+                const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ history: [{ role: "user", content: `Context: ${contextFiles}\nDirective: ${directive}\nBuffer:\n${editor.getValue()}` }] }) });
+                const data = await res.json();
+                outputEditor.setValue(data.choices[0].message.content.trim().replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, ''), -1);
+            } catch (e) { term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`); }
+            input.value = '';
+        }
+        
+        async function runShadowTest() {
+            if (!currentOpenPath) return;
+            const content = outputEditor.getValue();
+            
+            // Optional: If you kept the #shadowStatus square, you can update its color here.
+            // If you stripped it during the rollback, just rely on the terminal output.
+            const ind = document.getElementById('shadowStatus');
+
+            if (result.error) {
+            // Syntax error caught in the shadow directory
+            ind.style.backgroundColor = '#e74c3c'; // Turns Red
+            } else {
+            // Code is perfectly valid
+            ind.style.backgroundColor = '#2ecc71'; // Turns Green
+            }
+            
+            const res = await fetch('/api/shadow-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: currentOpenPath, content: content })
+            });
+            const result = await res.json();
+
+            if (result.error) {
+                term.write(`\r\n\x1b[31m[SHADOW FAIL] ${result.error}\x1b[0m\r\n`);
+            } else {
+                term.write(`\r\n\x1b[32m[SHADOW PASS] Logic verified in isolation.\x1b[0m\r\n`);
+            }
+        }
+
+        function applyDiffMerge() {
+            const existing = editor.getValue().split('\n');
+            const incoming = outputEditor.getValue().split('\n');
+
+            // The Surgical Guard: Prevents the AI from gutting the file
+            if (incoming.length < existing.length * 0.7) {
+                if (!confirm("The AI output is significantly shorter. Potential gutting detected. Proceed?")) return;
+            }
+
+            editor.setValue(outputEditor.getValue(), -1);
+            term.write(`\r\n\x1b[34m[SYSTEM] Differential merge applied to buffer.\x1b[0m\r\n`);
+        }
+        
+        // --- ENHANCED LIVE PREVIEW ENGINE ---
+        let isPreviewActive = false;
+        let previewTimeout;
+
+        function togglePreview() {
+            const preview = document.getElementById('previewFrame');
+            const outputEd = document.getElementById('outputEditor');
+            const btn = document.getElementById('previewBtn');
+            
+            // UI Element Targeting
+            const vpControls = document.getElementById('viewportControls');
+            const verifyBtn = document.getElementById('verifyBtn');
+            const mergeBtn = document.getElementById('mergeBtn');
+            const aiInput = document.getElementById('aiInput');
+            const execBtn = document.getElementById('execBtn');
+            const wrapBtn = document.getElementById('wrapToggle');
+
+            isPreviewActive = !isPreviewActive;
+
+            if (isPreviewActive) {
+                outputEd.style.display = 'none'; 
+                preview.style.display = 'block';
+                btn.style.color = '#e74c3c'; 
+                btn.innerText = 'Close';
+                
+                // Swap Controls
+                vpControls.style.display = 'flex';
+                verifyBtn.style.display = 'none';
+                mergeBtn.style.display = 'none';
+                aiInput.style.display = 'none';
+                execBtn.style.display = 'none';
+                wrapBtn.style.display = 'none';
+
+                setViewport('100%'); // Default to desktop
+                renderPreview(); 
+            } else {
+                preview.style.display = 'none'; 
+                outputEd.style.display = 'block';
+                btn.style.color = '#3498db'; 
+                btn.innerText = 'Preview';
+
+                // Restore Controls
+                vpControls.style.display = 'none';
+                verifyBtn.style.display = 'inline-block';
+                mergeBtn.style.display = 'inline-block';
+                aiInput.style.display = 'inline-block';
+                execBtn.style.display = 'inline-block';
+                wrapBtn.style.display = 'inline-block';
+            }
+        }
+
+        function setViewport(width) {
+            const preview = document.getElementById('previewFrame');
+            preview.style.width = width;
+            preview.style.margin = width === '100%' ? '0' : '0 auto';
+            preview.style.borderLeft = width === '100%' ? 'none' : '1px solid #333';
+            preview.style.borderRight = width === '100%' ? 'none' : '1px solid #333';
+        }
+
+        // --- PREVIEW ENHANCEMENTS (Undock Purged) ---
+        let previewBgState = 0;
+        function togglePreviewBackground() {
+            const preview = document.getElementById('previewFrame');
+            const states = [
+                '#ffffff', 
+                '#0a0a0a', 
+                'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23222\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23111\'/%3E%3C/svg%3E")'
+            ];
+            previewBgState = (previewBgState + 1) % states.length;
+            preview.style.background = states[previewBgState];
+        }
+
+        function renderPreview() {
+            if (!isPreviewActive) return;
+            const code = editor.getValue();
+            
+            // The Interceptor: Strictly piped from the iframe to the parent IDE
+            const interceptor = `
+                <script>
+                    const originalLog = console.log;
+                    const originalError = console.error;
+                    console.log = function(...args) {
+                        window.parent.postMessage({ type: 'preview-log', data: args.join(' ') }, '*');
+                        originalLog.apply(console, args);
+                    };
+                    console.error = function(...args) {
+                        window.parent.postMessage({ type: 'preview-error', data: args.join(' ') }, '*');
+                        originalError.apply(console, args);
+                    };
+                    window.onerror = function(msg, url, line) {
+                        window.parent.postMessage({ type: 'preview-error', data: msg + ' (Line ' + line + ')' }, '*');
+                        return false;
+                    };
+                <\/script>
+            `;
+            
+            document.getElementById('previewFrame').srcdoc = interceptor + code; 
+        }
+        
+        // --- SOURCE CONTROL ENGINE ---
+        function switchSidebar(viewName) {
+            document.querySelectorAll('.sidebar-view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.sidebar-tabs button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.getElementById(`tab-${viewName}`).classList.add('active');
+            if (viewName === 'git') refreshGitStatus();
+        }
+        
+        async function setGitRemote() {
+            const remoteUrl = prompt("Enter GitHub Repository URL (HTTPS or SSH):");
+            if (!remoteUrl) return;
+
+            try {
+                const res = await fetch('/api/git/remote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: remoteUrl, dir: currentDirectory })
+                });
+
+                const data = await res.json();
+                if (data.error) {
+                    term.write(`\r\n\x1b[31m[REMOTE ERROR] ${data.error}\x1b[0m\r\n`);
+                } else {
+                    term.write(`\r\n\x1b[32m[SYSTEM] Remote origin set to: ${remoteUrl}\x1b[0m\r\n`);
+                }
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
+            }
+        }
+        
+        async function refreshGitStatus() {
+            const list = document.getElementById('gitStatusList');
+            list.innerHTML = '<div style="color: #555;">SCANNING REPOSITORY...</div>';
+            try {
+                const res = await fetch(`/api/git/status?dir=${encodeURIComponent(currentDirectory)}`);
+                const data = await res.json();
+                list.innerHTML = '';
+                
+                if (data.staged.length > 0) {
+                    list.innerHTML += `<div class="git-header"><span>STAGED CHANGES</span></div>`;
+                    data.staged.forEach(item => list.appendChild(createGitItem(item, true)));
+                }
+                if (data.unstaged.length > 0) {
+                    list.innerHTML += `<div class="git-header"><span>CHANGES</span> <button onclick="gitAction('add-all')" style="padding: 2px 5px;">STAGE ALL</button></div>`;
+                    data.unstaged.forEach(item => list.appendChild(createGitItem(item, false)));
+                }
+                if (data.staged.length === 0 && data.unstaged.length === 0) {
+                    list.innerHTML = '<div style="color: #555; margin-top: 10px;">WORKING TREE CLEAN</div>';
+                }
+            } catch (err) { list.innerHTML = `<div style="color: #e74c3c;">GIT ERROR: ${err.message}</div>`; }
+        }
+
+        function createGitItem(item, isStaged) {
+            const div = document.createElement('div');
+            div.className = 'git-item';
+            const fileName = item.file.split(/[\\/]/).pop();
+            const actionBtn = isStaged ? 
+                `<button onclick="gitAction('unstage', '${item.file}')" title="Unstage">-</button>` : 
+                `<button onclick="gitAction('stage', '${item.file}')" title="Stage">+</button>`;
+            div.innerHTML = `
+                <span onclick="openFile('${item.file}')" style="flex-grow: 1;">${fileName}</span>
+                <span class="git-status-badge status-${item.status}">${item.status}</span>
+                ${actionBtn}
+            `;
+            return div;
+        }
+
+        async function gitAction(action, file = '') {
+            await fetch('/api/git/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, file, dir: currentDirectory }) });
+            refreshGitStatus();
+        }
+
+        async function commitChanges() {
+            const msgInput = document.getElementById('commitMessage');
+            const message = msgInput.value.trim();
+            if (!message) return alert('COMMIT MESSAGE REQUIRED.');
+            await fetch('/api/git/commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, dir: currentDirectory }) });
+            msgInput.value = '';
+            refreshGitStatus();
+            term.write(`\r\n\x1b[32m[SYSTEM] Git Commit Executed.\x1b[0m\r\n`);
+        }
+        
+        async function authenticateGit() {
+            const token = prompt("Enter GitHub Personal Access Token (PAT):");
+            if (!token) return;
+            
+            try {
+                const res = await fetch('/api/git/auth', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ token: token, dir: currentDirectory }) 
+                });
+                
+                const data = await res.json();
+                if (data.error) {
+                    term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
+                } else {
+                    term.write(`\r\n\x1b[32m[SYSTEM] Git Authentication Token Injected.\x1b[0m\r\n`);
+                }
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
+            }
+        }
+        
+        async function initGitRepo() {
+            try {
+                const res = await fetch('/api/git/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'init', dir: currentDirectory })
+                });
+                const data = await res.json();
+                
+                if (data.error) {
+                    term.write(`\r\n\x1b[31m[GIT ERROR] ${data.error}\x1b[0m\r\n`);
+                } else {
+                    term.write(`\r\n\x1b[32m[SYSTEM] Empty Git Repository Initialized in ${currentDirectory}\x1b[0m\r\n`);
+                    refreshGitStatus();
+                }
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
+            }
+        }
+        
+        // --- CONFIGURATION ENGINE ---
+        function loadSettings() {
+            const defaults = { theme: 'chaos', edFont: 14, tmFont: 13, pat: '' };
+            const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
+            
+            document.getElementById('set-theme').value = saved.theme;
+            document.getElementById('set-ed-font').value = saved.edFont;
+            document.getElementById('set-tm-font').value = saved.tmFont;
+            document.getElementById('set-pat').value = saved.pat;
+            
+            applySettings(saved);
+        }
+
+        function applySettings(config) {
+            const t = themeMap[config.theme] || themeMap.chaos;
+            [editor, outputEditor].forEach(ed => {
+                ed.setTheme(t.ace);
+                ed.setFontSize(parseInt(config.edFont));
+            });
+            term.options.theme = Object.assign({}, t.term);
+            term.options.fontSize = parseInt(config.tmFont);
+            fitAddon.fit();
+        }
+
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+        function saveSettings() {
+            const config = {
+                theme: document.getElementById('set-theme').value,
+                edFont: document.getElementById('set-ed-font').value,
+                tmFont: document.getElementById('set-tm-font').value,
+                pat: document.getElementById('set-pat').value
+            };
+            localStorage.setItem('crucible-settings', JSON.stringify(config));
+            applySettings(config);
+            closeSettings();
+            term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
+        }
+
+        // --- UPDATED AUTHENTICATION LOGIC ---
+        // This overrides the previous authenticateGit function to read from settings first
+        async function authenticateGit() {
+            const saved = JSON.parse(localStorage.getItem('crucible-settings')) || {};
+            let token = saved.pat;
+            
+            if (!token) {
+                token = prompt("Enter GitHub Personal Access Token (PAT):");
+                if (token) {
+                    saved.pat = token;
+                    localStorage.setItem('crucible-settings', JSON.stringify(saved));
+                    document.getElementById('set-pat').value = token;
+                }
+            }
+            
+            if (!token) return;
+            
+            try {
+                const res = await fetch('/api/git/auth', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ token: token, dir: currentDirectory }) 
+                });
+                
+                const data = await res.json();
+                if (data.error) term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
+                else term.write(`\r\n\x1b[32m[SYSTEM] Git Authentication Token Injected.\x1b[0m\r\n`);
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
+            }
+        }
+
+        // --- UPDATED INITIALIZATION ---
+        // Overwrite the existing window.onload at the very bottom of the script
+        window.onload = () => { 
+            loadTree(); 
+            initResizers(); 
+            loadSettings(); 
+            term.focus(); 
+        };
+        
+        // --- RECALIBRATED: Match the 3-column array ---
+        function toggleSidebar() {
+            const sb = document.getElementById('mainSidebar');
+            const body = document.body;
+            const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
+    
+            sb.classList.toggle('collapsed');
+    
+            if (sb.classList.contains('collapsed')) {
+                body.style.gridTemplateColumns = "40px 1fr 1fr";
+            } else {
+                body.style.gridTemplateColumns = savedLayout.cols;
+            }
+    
+            [editor, outputEditor].forEach(ed => ed.resize());
+            fitAddon.fit();
+        }
+
+        editor.commands.addCommand({ name: 'save', bindKey: {win: 'Ctrl-S', mac: 'Cmd-S'}, exec: saveFile });
+
+        window.onload = () => { loadTree(); initResizers(); term.focus(); };
+    </script>
+</body>
+</html>
