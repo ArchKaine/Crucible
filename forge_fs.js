@@ -3,60 +3,73 @@ const path = require('path');
 const { exec } = require('child_process');
 
 module.exports = {
+    // --- PATH VALIDATION SHIELD ---
+    validatePath: (targetPath) => {
+        const rootDir = process.cwd();
+        const resolvedPath = path.resolve(targetPath);
+        if (!resolvedPath.startsWith(rootDir)) {
+            throw new Error("SECURITY VIOLATION: Directory traversal blocked.");
+        }
+        return resolvedPath;
+    },
+
     // Generates the data for the recursive tree builder
     listFiles: (targetDir) => {
-        const resolved = path.resolve(targetDir);
-        if (!fs.existsSync(resolved)) throw new Error("Directory does not exist.");
-        
-        const list = fs.readdirSync(resolved, { withFileTypes: true }).map(e => ({
-            name: e.name, 
-            path: path.join(resolved, e.name), 
-            isDirectory: e.isDirectory()
+        const secureDir = module.exports.validatePath(targetDir);
+        if (!fs.existsSync(secureDir)) throw new Error("Directory does not exist.");
+
+        const list = fs.readdirSync(secureDir, { withFileTypes: true }).map(e => ({
+            name: e.name,
+            path: path.join(secureDir, e.name),
+                                                                                  isDirectory: e.isDirectory()
         })).sort((a, b) => b.isDirectory - a.isDirectory || a.name.localeCompare(b.name));
-        
-        return { currentDir: resolved, entries: list };
+
+        return { currentDir: secureDir, entries: list };
     },
 
     // Standard File Operations
     readFile: (targetPath) => {
-        if (!targetPath || !fs.existsSync(targetPath)) throw new Error("File not found.");
-        return fs.readFileSync(targetPath, 'utf8');
+        const securePath = module.exports.validatePath(targetPath);
+        if (!fs.existsSync(securePath)) throw new Error("File not found.");
+        return fs.readFileSync(securePath, 'utf8');
     },
 
     writeFile: (targetPath, content) => {
-        if (!targetPath) throw new Error("Invalid path.");
-        fs.writeFileSync(targetPath, content);
+        const securePath = module.exports.validatePath(targetPath);
+        fs.writeFileSync(securePath, content);
     },
 
     createFile: (targetPath) => {
-        if (!targetPath) throw new Error("Invalid path.");
-        fs.writeFileSync(targetPath, '');
+        const securePath = module.exports.validatePath(targetPath);
+        fs.writeFileSync(securePath, '');
     },
 
     // --- INDUSTRIAL MANAGEMENT HOOKS ---
     deletePath: (targetPath) => {
-        if (!fs.existsSync(targetPath)) return;
-        // Recursive rm handles both files and lore-folder structures
-        fs.rmSync(targetPath, { recursive: true, force: true });
+        const securePath = module.exports.validatePath(targetPath);
+        if (!fs.existsSync(securePath)) return;
+        fs.rmSync(securePath, { recursive: true, force: true });
     },
 
     renamePath: (oldPath, newPath) => {
-        if (!fs.existsSync(oldPath)) throw new Error("Source path does not exist.");
-        fs.renameSync(oldPath, newPath);
+        const secureOld = module.exports.validatePath(oldPath);
+        const secureNew = module.exports.validatePath(newPath);
+        if (!fs.existsSync(secureOld)) throw new Error("Source path does not exist.");
+        fs.renameSync(secureOld, secureNew);
     },
 
     mkdir: (targetPath) => {
-        if (!fs.existsSync(targetPath)) {
-            fs.mkdirSync(targetPath, { recursive: true });
+        const securePath = module.exports.validatePath(targetPath);
+        if (!fs.existsSync(securePath)) {
+            fs.mkdirSync(securePath, { recursive: true });
         }
     },
 
-    // RECURSIVE INDEXING ENGINE (DYNAMIC, TARGETED & STREAMING)
+    // RECURSIVE INDEXING ENGINE
     indexFiles: async (dir, getEmbedding, onProgress, options = {}) => {
         const indexPath = path.join(process.cwd(), 'vector_index.jsonl');
         const indexedPaths = new Set();
 
-        // DEFAULT FILTERS
         const extensions = options.extensions || ['js', 'py', 'md', 'txt', 'html', 'css', 'json', 'c', 'cpp', 'h', 'rs', 'go'];
         const excludes = options.excludes || ['node_modules', '.git', 'ui', '.venv', 'dist', 'build'];
         const extRegex = new RegExp(`\\.(${extensions.join('|')})$`, 'i');
@@ -102,13 +115,13 @@ module.exports = {
 
         for (let i = 0; i < total; i++) {
             const filePath = filesToProcess[i];
-            
+
             if (indexedPaths.has(filePath)) {
                 onProgress({
                     current: i + 1,
                     total: total,
                     file: `SKIPPED: ${path.basename(filePath)}`,
-                    percent: Math.round(((i + 1) / total) * 100)
+                           percent: Math.round(((i + 1) / total) * 100)
                 });
                 continue;
             }
@@ -119,12 +132,12 @@ module.exports = {
                     const vector = await getEmbedding(content);
                     const entry = {
                         path: filePath,
-                        text: content.substring(0, 2500), 
+                        text: content.substring(0, 2500),
                         vector: vector
                     };
                     stream.write(JSON.stringify(entry) + '\n');
                 }
-            } catch (e) { 
+            } catch (e) {
                 console.error(`Sync error on ${filePath}: ${e.message}`);
             }
 
@@ -132,30 +145,23 @@ module.exports = {
                 current: i + 1,
                 total: total,
                 file: path.basename(filePath),
-                percent: Math.round(((i + 1) / total) * 100)
+                       percent: Math.round(((i + 1) / total) * 100)
             });
         }
 
         stream.end();
-        return true; 
+        return true;
     },
 
-    // --- GREP-BASED GLOBAL SEARCH ---
+    // --- SECURE GREP SEARCH ---
     searchFiles: (query, dir) => {
         return new Promise((resolve) => {
-            const resolvedDir = dir || process.cwd();
-            
-            // Detection: If the model includes flags or paths, treat as a raw pattern string.
-            // Otherwise, wrap it to ensure spaces in simple queries don't break the shell.
-            const isAdvanced = query.includes(' -e ') || query.includes('-i') || query.includes('./');
-            let pattern = isAdvanced ? query : `"${query}"`;
+            const secureDir = module.exports.validatePath(dir || process.cwd());
 
-            // If the model prepended the directory (e.g., "./lore -e ..."), strip it 
-            // since we already define the target directory in the command.
-            pattern = pattern.replace(/^\.?\/?lore\s+/, '');
+            // Strip dangerous shell characters
+            const sanitizedQuery = query.replace(/(["'$`\\])/g, '\\$1');
+            const cmd = `grep -riIn "${sanitizedQuery}" "${secureDir}" --exclude-dir={.git,node_modules,ui}`;
 
-            const cmd = `grep -riIn ${pattern} "${resolvedDir}" --exclude-dir={.git,node_modules,ui}`;
-            
             exec(cmd, { maxBuffer: 1024 * 1024 * 10 }, (err, stdout) => {
                 const results = (stdout || "").split('\n').filter(l => l.trim() !== "").map(line => {
                     const [f, n, ...t] = line.split(':');

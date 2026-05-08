@@ -540,9 +540,15 @@
                         <option value="tomorrow">Tomorrow Night</option>
                     </select>
                 </div>
-                <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 5px; margin-top: 15px;">
-                    <input type="checkbox" id="set-autosave">
-                    <label style="margin: 0;">Enable Autosave (30s)</label>
+                <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 15px; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="set-autosave">
+                        <label style="margin: 0;">Auto-Backup</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <label style="margin: 0;">Depth:</label>
+                        <input type="number" id="set-autosave-max" value="5" min="1" max="20" style="width: 45px; padding: 2px 4px;">
+                    </div>
                 </div>
             </div>
             
@@ -948,8 +954,14 @@
         
         async function saveFile() {
             if (!currentOpenPath) return;
-            await fetch('/api/write', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentOpenPath, content: editor.getValue() }) });
-            term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
+            await fetch('/api/write', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ path: currentOpenPath, content: editor.getValue() }) 
+            });
+            
+            // --- TELEMETRY REROUTE SPLICE ---
+            sysLog(`Saved: ${currentOpenPath.split(/[\\/]/).pop()}`);
         }
 
         async function startIndexing() {
@@ -969,6 +981,11 @@
             const input = document.getElementById('aiInput');
             const directive = input.value;
             if (!directive) return;
+            
+            // Log to history and reset index
+            aiCmdHistory.push(directive);
+            aiCmdIndex = -1;
+            
             const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
             input.value = 'PROCESSING...';
             try {
@@ -1246,13 +1263,14 @@
             }
         }
         
-        // --- CONFIGURATION ENGINE ---
+        // --- CONFIGURATION ENGINE (Cyclic Auto-Backup) ---
         let autosaveInterval = null;
+        let autosaveCounter = 1;
 
         function loadSettings() {
             const defaults = { 
                 theme: 'chaos', edFont: 14, tmFont: 13, 
-                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false 
+                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false, autosaveMax: 5 
             };
             const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
             
@@ -1264,8 +1282,45 @@
             document.getElementById('set-git-name').value = saved.gitName || '';
             document.getElementById('set-git-email').value = saved.gitEmail || '';
             document.getElementById('set-autosave').checked = saved.autosave || false;
+            document.getElementById('set-autosave-max').value = saved.autosaveMax || 5;
             
             applySettings(saved);
+        }
+
+        async function createAutoBackup(maxDepth) {
+            if (!currentOpenPath) return;
+            
+            const content = editor.getValue();
+            const parts = currentOpenPath.split(/[\\/]/);
+            const fileName = parts.pop();
+            const dir = parts.join('/');
+            
+            // Construct the rolling backup path
+            const backupName = `autosaved_${autosaveCounter}_${fileName}`;
+            const backupPath = dir ? `${dir}/${backupName}` : backupName;
+
+            try {
+                // Pipe to the standard write endpoint
+                await fetch('/api/write', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ path: backupPath, content: content }) 
+                });
+                
+                // --- TELEMETRY REROUTE SPLICE ---
+                sysLog(`Auto-backup secured: ${backupName}`);
+                
+                // Increment and enforce the cyclic limit
+                autosaveCounter++;
+                if (autosaveCounter > maxDepth) autosaveCounter = 1;
+                
+                // Silently refresh the tree UI if looking at the active directory
+                if (dir === currentDirectory || (!dir && currentDirectory === '/')) {
+                    loadTree(currentDirectory, null, true);
+                }
+            } catch (e) {
+                console.error("Backup failure.");
+            }
         }
 
         function applySettings(config) {
@@ -1278,12 +1333,12 @@
             term.options.fontSize = parseInt(config.tmFont);
             fitAddon.fit();
 
-            // Autosave Mechanic
+            // Auto-Backup Mechanic
             if (config.autosave) {
                 if (!autosaveInterval) {
                     autosaveInterval = setInterval(() => { 
-                        if (currentOpenPath) saveFile(); 
-                    }, 30000); // 30-second interval
+                        createAutoBackup(parseInt(config.autosaveMax) || 5);
+                    }, 300000); 
                 }
             } else {
                 if (autosaveInterval) { 
@@ -1305,7 +1360,8 @@
                 repo: document.getElementById('set-repo').value,
                 gitName: document.getElementById('set-git-name').value,
                 gitEmail: document.getElementById('set-git-email').value,
-                autosave: document.getElementById('set-autosave').checked
+                autosave: document.getElementById('set-autosave').checked,
+                autosaveMax: parseInt(document.getElementById('set-autosave-max').value) || 5
             };
             
             localStorage.setItem('crucible-settings', JSON.stringify(config));
@@ -1313,42 +1369,13 @@
             closeSettings();
             term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
 
-            // Background execution: Push configurations to the local Git repository
+            // Background Git Configurations
             if (config.gitName || config.gitEmail) {
-                try {
-                    await fetch('/api/git/config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: config.gitName, email: config.gitEmail, dir: currentDirectory })
-                    });
-                } catch (e) { /* Fails silently if not a git repo yet */ }
+                try { await fetch('/api/git/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: config.gitName, email: config.gitEmail, dir: currentDirectory }) }); } catch (e) {}
             }
-            
             if (config.repo) {
-                try {
-                    await fetch('/api/git/remote', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: config.repo, dir: currentDirectory })
-                    });
-                } catch (e) { /* Fails silently if not a git repo yet */ }
+                try { await fetch('/api/git/remote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: config.repo, dir: currentDirectory }) }); } catch (e) {}
             }
-        }
-
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-
-        function saveSettings() {
-            const config = {
-                theme: document.getElementById('set-theme').value,
-                edFont: document.getElementById('set-ed-font').value,
-                tmFont: document.getElementById('set-tm-font').value,
-                pat: document.getElementById('set-pat').value
-            };
-            localStorage.setItem('crucible-settings', JSON.stringify(config));
-            applySettings(config);
-            closeSettings();
-            term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
         }
 
         // --- UPDATED AUTHENTICATION LOGIC ---
@@ -1463,7 +1490,48 @@
             [editor, outputEditor].forEach(ed => ed.resize());
             fitAddon.fit();
         }
+        
+        // --- TELEMETRY ROUTER ---
+        let statusTimeout;
+        function sysLog(message, isError = false) {
+            const statusEl = document.getElementById('coreStatus');
+            statusEl.innerText = message;
+            statusEl.style.color = isError ? '#e74c3c' : '#2ecc71';
+            
+            clearTimeout(statusTimeout);
+            statusTimeout = setTimeout(() => {
+                statusEl.innerText = 'System Operational';
+                statusEl.style.color = '#444'; 
+            }, 4000);
+        }
+        
+        // --- AI COMMAND HISTORY ENGINE ---
+        const aiCmdHistory = [];
+        let aiCmdIndex = -1;
 
+        const aiInputEl = document.getElementById('aiInput');
+        aiInputEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                askAI();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (aiCmdHistory.length > 0) {
+                    aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
+                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (aiCmdIndex > 0) {
+                    aiCmdIndex--;
+                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                } else if (aiCmdIndex === 0) {
+                    aiCmdIndex = -1;
+                    this.value = '';
+                }
+            }
+        });
+        
         // --- GLOBAL KEYBINDING ENGINE ---
         // 1. Bind strictly to the Ace Editors
         [editor, outputEditor].forEach(ed => {
