@@ -92,7 +92,9 @@ const server = http.createServer(async (req, res) => {
             const results = await forgeFS.searchFiles(url.searchParams.get('q'), url.searchParams.get('dir'));
             return sendJSON(results);
         }
-
+        
+        
+        
         // --- GIT TELEMETRY ---
         if (pathname === '/api/git/status' && req.method === 'GET') {
             const dir = url.searchParams.get('dir') || process.cwd();
@@ -149,6 +151,22 @@ const server = http.createServer(async (req, res) => {
                 if (pathname === '/api/write') { forgeFS.writeFile(data.path, data.content); return sendJSON({ status: 'success' }); }
                 if (pathname === '/api/create') { forgeFS.createFile(data.path); return sendJSON({ status: 'created' }); }
                 
+                // --- GIT AUTHOR CONFIGURATION ---
+                if (pathname === '/api/git/config') {
+                    const targetDir = data.dir || process.cwd();
+                    try {
+                        if (data.name) {
+                            await execPromise(`git -C "${targetDir}" config user.name "${data.name}"`);
+                        }
+                        if (data.email) {
+                            await execPromise(`git -C "${targetDir}" config user.email "${data.email}"`);
+                        }
+                        return sendJSON({ success: true });
+                    } catch (err) {
+                        return sendJSON({ error: err.message }, 500);
+                    }
+                }
+                
                 // --- GIT REMOTE MANAGEMENT ---
                 if (pathname === '/api/git/remote') {
                     const targetDir = data.dir || process.cwd();
@@ -174,6 +192,7 @@ const server = http.createServer(async (req, res) => {
                     let command = '';
                     try {
                         switch (data.action) {
+                            case 'init': command = `git -C "${targetDir}" init`; break; // <-- ADD THIS LINE
                             case 'stage': command = `git -C "${targetDir}" add "${data.file}"`; break;
                             case 'unstage': command = `git -C "${targetDir}" reset HEAD "${data.file}"`; break;
                             case 'add-all': command = `git -C "${targetDir}" add .`; break;

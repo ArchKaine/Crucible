@@ -401,6 +401,20 @@
         .status-A { color: #2ecc71; } /* Added */
         .status-D { color: #e74c3c; } /* Deleted */
         .status-U { color: #3498db; } /* Untracked */
+        
+        /* SETTINGS MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: #0a0a0a; border: 1px solid #222; width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; }
+        .modal-header h3 { margin: 0; color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .close-btn { cursor: pointer; color: #666; font-size: 14px; background: none; border: none; padding: 0; }
+        .close-btn:hover { color: #f44336; }
+        .settings-group { display: flex; flex-direction: column; gap: 8px; }
+        .settings-group label { font-size: 10px; color: #666; text-transform: uppercase; }
+        .settings-group select, .settings-group input[type="number"], .settings-group input[type="text"] { background: #000; border: 1px solid #222; color: #ccc; padding: 6px; font-size: 11px; outline: none; font-family: inherit; }
+        .settings-group select:focus, .settings-group input:focus { border-color: #444; }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #1a1a1a; padding-top: 15px; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -443,6 +457,7 @@
 
         <div id="view-git" class="sidebar-view">
             <div class="git-controls">
+                <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
                 <input type="text" id="commitMessage" placeholder="Commit message...">
                 <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
                 <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
@@ -466,13 +481,9 @@
 
     <div class="editor-container">
         <div class="controls">
-            <select id="themeSelect" onchange="changeTheme()">
-                <option value="chaos">CHAOS</option>
-                <option value="industrial">INDUSTRIAL</option>
-                <option value="twilight">TWILIGHT</option>
-                <option value="tomorrow">TOMORROW NIGHT</option>
-            </select>
-
+            <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
+            
+            <button onclick="saveFile()">Save</button>
             <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
 
             <div id="statusBar">
@@ -482,7 +493,6 @@
                     <span id="corePercent">0%</span>
                 </div>
             </div>
-            <button onclick="saveFile()">Save</button>
         </div>
         <div id="tabBar"></div>
         <div id="codeEditor"></div>
@@ -490,20 +500,93 @@
     <div id="shadowStatus" title="Shadow Forge Integrity"></div>
     <div class="output-container">
         <div class="controls">
+            
+            <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
+            
             <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
-            <button onclick="askAI()">EXECUTE</button>
+            <button onclick="askAI()" id="execBtn">Execute</button>
             
-            <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">PREVIEW</button>
+            <div id="viewportControls" style="display: none; gap: 5px;">
+                <button onclick="setViewport('100%')">Desktop</button>
+                <button onclick="setViewport('768px')">Tablet</button>
+                <button onclick="setViewport('375px')">Mobile</button>
+                <button onclick="togglePreviewBackground()" style="color: #9b59b6;">BG Toggle</button>
+            </div>
+
+            <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
+            <button onclick="applyDiffMerge()" id="mergeBtn" style="color: #2ecc71;">Merge</button>
             
-            <button onclick="runShadowTest()">VERIFY</button>
-            <button onclick="applyDiffMerge()">MERGE</button>
-            <button id="wrapToggle" onclick="toggleWrap()" class="active">WRAP</button>
+            <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
         </div>
         
         <div id="outputEditor"></div>
         <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
     </div>
+    
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content" style="width: 500px;">
+            <div class="modal-header">
+                <h3>System Preferences</h3>
+                <button class="close-btn" onclick="closeSettings()">✕</button>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                    <label>Editor Theme</label>
+                    <select id="set-theme">
+                        <option value="chaos">Chaos</option>
+                        <option value="industrial">Industrial</option>
+                        <option value="twilight">Twilight</option>
+                        <option value="tomorrow">Tomorrow Night</option>
+                    </select>
+                </div>
+                <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 5px; margin-top: 15px;">
+                    <input type="checkbox" id="set-autosave">
+                    <label style="margin: 0;">Enable Autosave (30s)</label>
+                </div>
+            </div>
+            
+            <div class="settings-row">
+                <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                    <label>Editor Font Size</label>
+                    <input type="number" id="set-ed-font" value="14" min="8" max="24">
+                </div>
+                <div class="settings-group" style="flex: 1;">
+                    <label>Terminal Font Size</label>
+                    <input type="number" id="set-tm-font" value="13" min="8" max="24">
+                </div>
+            </div>
 
+            <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 10px 0; width: 100%;">
+            
+            <div class="settings-group">
+                <label>GitHub PAT (Authentication)</label>
+                <input type="password" id="set-pat" placeholder="ghp_...">
+            </div>
+
+            <div class="settings-group">
+                <label>Target Repository URL (Remote Origin)</label>
+                <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                    <label>Git Author Name</label>
+                    <input type="text" id="set-git-name" placeholder="John Doe">
+                </div>
+                <div class="settings-group" style="flex: 1;">
+                    <label>Git Author Email</label>
+                    <input type="text" id="set-git-email" placeholder="john@example.com">
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="closeSettings()" style="background: transparent; border: 1px solid #222;">Cancel</button>
+                <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71;">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="terminal-container">
         <div id="terminalBox"></div>
     </div>
@@ -700,6 +783,7 @@
                     navHistory.push(currentDirectory);
                     navIndex++;
                 }
+                saveWorkspaceState();
                 parentElement = document.getElementById('fileList');
                 parentElement.innerHTML = '';
             }
@@ -829,6 +913,8 @@
             const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
             if (activeTab) activeTab.classList.add('active');
             editor.focus();
+            
+            saveWorkspaceState();
         }
 
         function closeTab(path) {
@@ -838,6 +924,8 @@
             const remaining = Object.keys(openTabs);
             if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
             else { currentOpenPath = ''; editor.setValue('', -1); }
+            
+            saveWorkspaceState();
         }
         
         async function createNewFile() {
@@ -868,13 +956,6 @@
             document.getElementById('coreStatus').innerText = "Initiating Targeted Sync...";
             const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
             await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selectedFiles: contextFiles }) });
-        }
-
-        function changeTheme() {
-            const t = themeMap[document.getElementById('themeSelect').value];
-            [editor, outputEditor].forEach(ed => ed.setTheme(t.ace));
-            term.options.theme = Object.assign({}, t.term);
-            term.focus();
         }
 
         function toggleWrap() {
@@ -941,7 +1022,7 @@
             term.write(`\r\n\x1b[34m[SYSTEM] Differential merge applied to buffer.\x1b[0m\r\n`);
         }
         
-        // --- LIVE PREVIEW ENGINE ---
+        // --- ENHANCED LIVE PREVIEW ENGINE ---
         let isPreviewActive = false;
         let previewTimeout;
 
@@ -949,42 +1030,96 @@
             const preview = document.getElementById('previewFrame');
             const outputEd = document.getElementById('outputEditor');
             const btn = document.getElementById('previewBtn');
+            
+            // UI Element Targeting
+            const vpControls = document.getElementById('viewportControls');
+            const verifyBtn = document.getElementById('verifyBtn');
+            const mergeBtn = document.getElementById('mergeBtn');
+            const aiInput = document.getElementById('aiInput');
+            const execBtn = document.getElementById('execBtn');
+            const wrapBtn = document.getElementById('wrapToggle');
 
             isPreviewActive = !isPreviewActive;
 
             if (isPreviewActive) {
-                // Hide AI Output, Show Iframe
-                outputEd.style.display = 'none';
+                outputEd.style.display = 'none'; 
                 preview.style.display = 'block';
-                btn.style.color = '#e74c3c'; // Red active state
-                btn.innerText = 'CLOSE PREVIEW';
+                btn.style.color = '#e74c3c'; 
+                btn.innerText = 'Close';
+                
+                // Swap Controls
+                vpControls.style.display = 'flex';
+                verifyBtn.style.display = 'none';
+                mergeBtn.style.display = 'none';
+                aiInput.style.display = 'none';
+                execBtn.style.display = 'none';
+                wrapBtn.style.display = 'none';
+
+                setViewport('100%'); // Default to desktop
                 renderPreview(); 
             } else {
-                // Restore AI Output
-                preview.style.display = 'none';
+                preview.style.display = 'none'; 
                 outputEd.style.display = 'block';
-                btn.style.color = '#3498db'; // Blue idle state
-                btn.innerText = 'PREVIEW';
+                btn.style.color = '#3498db'; 
+                btn.innerText = 'Preview';
+
+                // Restore Controls
+                vpControls.style.display = 'none';
+                verifyBtn.style.display = 'inline-block';
+                mergeBtn.style.display = 'inline-block';
+                aiInput.style.display = 'inline-block';
+                execBtn.style.display = 'inline-block';
+                wrapBtn.style.display = 'inline-block';
             }
+        }
+
+        function setViewport(width) {
+            const preview = document.getElementById('previewFrame');
+            preview.style.width = width;
+            preview.style.margin = width === '100%' ? '0' : '0 auto';
+            preview.style.borderLeft = width === '100%' ? 'none' : '1px solid #333';
+            preview.style.borderRight = width === '100%' ? 'none' : '1px solid #333';
+        }
+
+        // --- PREVIEW ENHANCEMENTS (Undock Purged) ---
+        let previewBgState = 0;
+        function togglePreviewBackground() {
+            const preview = document.getElementById('previewFrame');
+            const states = [
+                '#ffffff', 
+                '#0a0a0a', 
+                'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23222\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23111\'/%3E%3C/svg%3E")'
+            ];
+            previewBgState = (previewBgState + 1) % states.length;
+            preview.style.background = states[previewBgState];
         }
 
         function renderPreview() {
             if (!isPreviewActive) return;
-            const preview = document.getElementById('previewFrame');
             const code = editor.getValue();
             
-            // srcdoc bypasses server requests and renders raw HTML strings locally
-            preview.srcdoc = code; 
+            // The Interceptor: Strictly piped from the iframe to the parent IDE
+            const interceptor = `
+                <script>
+                    const originalLog = console.log;
+                    const originalError = console.error;
+                    console.log = function(...args) {
+                        window.parent.postMessage({ type: 'preview-log', data: args.join(' ') }, '*');
+                        originalLog.apply(console, args);
+                    };
+                    console.error = function(...args) {
+                        window.parent.postMessage({ type: 'preview-error', data: args.join(' ') }, '*');
+                        originalError.apply(console, args);
+                    };
+                    window.onerror = function(msg, url, line) {
+                        window.parent.postMessage({ type: 'preview-error', data: msg + ' (Line ' + line + ')' }, '*');
+                        return false;
+                    };
+                <\/script>
+            `;
+            
+            document.getElementById('previewFrame').srcdoc = interceptor + code; 
         }
-
-        // The Keystroke Hook: Re-renders the iframe dynamically when code changes
-        editor.session.on('change', () => {
-            if (isPreviewActive) {
-                // Debounce the render by 300ms so the CPU doesn't choke on fast typing
-                clearTimeout(previewTimeout);
-                previewTimeout = setTimeout(renderPreview, 300);
-            }
-        });
         
         // --- SOURCE CONTROL ENGINE ---
         function switchSidebar(viewName) {
@@ -1091,6 +1226,226 @@
             }
         }
         
+        async function initGitRepo() {
+            try {
+                const res = await fetch('/api/git/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'init', dir: currentDirectory })
+                });
+                const data = await res.json();
+                
+                if (data.error) {
+                    term.write(`\r\n\x1b[31m[GIT ERROR] ${data.error}\x1b[0m\r\n`);
+                } else {
+                    term.write(`\r\n\x1b[32m[SYSTEM] Empty Git Repository Initialized in ${currentDirectory}\x1b[0m\r\n`);
+                    refreshGitStatus();
+                }
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
+            }
+        }
+        
+        // --- CONFIGURATION ENGINE ---
+        let autosaveInterval = null;
+
+        function loadSettings() {
+            const defaults = { 
+                theme: 'chaos', edFont: 14, tmFont: 13, 
+                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false 
+            };
+            const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
+            
+            document.getElementById('set-theme').value = saved.theme || 'chaos';
+            document.getElementById('set-ed-font').value = saved.edFont || 14;
+            document.getElementById('set-tm-font').value = saved.tmFont || 13;
+            document.getElementById('set-pat').value = saved.pat || '';
+            document.getElementById('set-repo').value = saved.repo || '';
+            document.getElementById('set-git-name').value = saved.gitName || '';
+            document.getElementById('set-git-email').value = saved.gitEmail || '';
+            document.getElementById('set-autosave').checked = saved.autosave || false;
+            
+            applySettings(saved);
+        }
+
+        function applySettings(config) {
+            const t = themeMap[config.theme] || themeMap.chaos;
+            [editor, outputEditor].forEach(ed => {
+                ed.setTheme(t.ace);
+                ed.setFontSize(parseInt(config.edFont));
+            });
+            term.options.theme = Object.assign({}, t.term);
+            term.options.fontSize = parseInt(config.tmFont);
+            fitAddon.fit();
+
+            // Autosave Mechanic
+            if (config.autosave) {
+                if (!autosaveInterval) {
+                    autosaveInterval = setInterval(() => { 
+                        if (currentOpenPath) saveFile(); 
+                    }, 30000); // 30-second interval
+                }
+            } else {
+                if (autosaveInterval) { 
+                    clearInterval(autosaveInterval); 
+                    autosaveInterval = null; 
+                }
+            }
+        }
+
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+        async function saveSettings() {
+            const config = {
+                theme: document.getElementById('set-theme').value,
+                edFont: document.getElementById('set-ed-font').value,
+                tmFont: document.getElementById('set-tm-font').value,
+                pat: document.getElementById('set-pat').value,
+                repo: document.getElementById('set-repo').value,
+                gitName: document.getElementById('set-git-name').value,
+                gitEmail: document.getElementById('set-git-email').value,
+                autosave: document.getElementById('set-autosave').checked
+            };
+            
+            localStorage.setItem('crucible-settings', JSON.stringify(config));
+            applySettings(config);
+            closeSettings();
+            term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
+
+            // Background execution: Push configurations to the local Git repository
+            if (config.gitName || config.gitEmail) {
+                try {
+                    await fetch('/api/git/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: config.gitName, email: config.gitEmail, dir: currentDirectory })
+                    });
+                } catch (e) { /* Fails silently if not a git repo yet */ }
+            }
+            
+            if (config.repo) {
+                try {
+                    await fetch('/api/git/remote', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: config.repo, dir: currentDirectory })
+                    });
+                } catch (e) { /* Fails silently if not a git repo yet */ }
+            }
+        }
+
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+        function saveSettings() {
+            const config = {
+                theme: document.getElementById('set-theme').value,
+                edFont: document.getElementById('set-ed-font').value,
+                tmFont: document.getElementById('set-tm-font').value,
+                pat: document.getElementById('set-pat').value
+            };
+            localStorage.setItem('crucible-settings', JSON.stringify(config));
+            applySettings(config);
+            closeSettings();
+            term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
+        }
+
+        // --- UPDATED AUTHENTICATION LOGIC ---
+        // This overrides the previous authenticateGit function to read from settings first
+        async function authenticateGit() {
+            const saved = JSON.parse(localStorage.getItem('crucible-settings')) || {};
+            let token = saved.pat;
+            
+            if (!token) {
+                token = prompt("Enter GitHub Personal Access Token (PAT):");
+                if (token) {
+                    saved.pat = token;
+                    localStorage.setItem('crucible-settings', JSON.stringify(saved));
+                    document.getElementById('set-pat').value = token;
+                }
+            }
+            
+            if (!token) return;
+            
+            try {
+                const res = await fetch('/api/git/auth', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ token: token, dir: currentDirectory }) 
+                });
+                
+                const data = await res.json();
+                if (data.error) term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
+                else term.write(`\r\n\x1b[32m[SYSTEM] Git Authentication Token Injected.\x1b[0m\r\n`);
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
+            }
+        }
+
+        // --- UPDATED INITIALIZATION ---
+        // Overwrite the existing window.onload at the very bottom of the script
+        window.onload = () => { 
+            loadTree(); 
+            initResizers(); 
+            loadSettings(); 
+            term.focus(); 
+        };
+        
+        // --- WORKSPACE STATE ENGINE ---
+        function saveWorkspaceState() {
+            // Wait a microsecond for the UI to settle before taking the snapshot
+            setTimeout(() => {
+                const state = {
+                    dir: currentDirectory,
+                    tabs: Object.keys(openTabs),
+                    active: currentOpenPath
+                };
+                localStorage.setItem('crucible-workspace', JSON.stringify(state));
+            }, 50);
+        }
+
+        async function restoreWorkspaceState() {
+            const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
+            
+            if (!saved || !saved.dir) {
+                // First boot ever: load root
+                loadTree();
+                return;
+            }
+
+            // 1. Restore the directory tree
+            await loadTree(saved.dir);
+
+            // 2. Re-open all the tabs silently
+            if (saved.tabs && saved.tabs.length > 0) {
+                for (const path of saved.tabs) {
+                    try {
+                        const fileName = path.split(/[\\/]/).pop();
+                        const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
+                        if (!res.ok) continue; // Skip if file was deleted externally
+                        
+                        const content = await res.text();
+                        const syntaxMode = getSyntaxMode(fileName);
+                        const session = ace.createEditSession(content, syntaxMode);
+                        session.setUseWrapMode(editor.getOption("wrap") !== "off");
+                        
+                        openTabs[path] = { session, name: fileName };
+                        createTabUI(path, fileName);
+                    } catch(e) { console.error("Could not restore tab: " + path); }
+                }
+            }
+
+            // 3. Focus the tab you were actually looking at
+            if (saved.active && openTabs[saved.active]) {
+                switchTab(saved.active);
+            } else {
+                // If no active tab, but tabs exist, focus the last one
+                const remaining = Object.keys(openTabs);
+                if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
+            }
+        }
+        
         // --- RECALIBRATED: Match the 3-column array ---
         function toggleSidebar() {
             const sb = document.getElementById('mainSidebar');
@@ -1109,9 +1464,35 @@
             fitAddon.fit();
         }
 
-        editor.commands.addCommand({ name: 'save', bindKey: {win: 'Ctrl-S', mac: 'Cmd-S'}, exec: saveFile });
+        // --- GLOBAL KEYBINDING ENGINE ---
+        // 1. Bind strictly to the Ace Editors
+        [editor, outputEditor].forEach(ed => {
+            ed.commands.addCommand({
+                name: 'save',
+                bindKey: { win: 'Ctrl-S', mac: 'Cmd-S' },
+                exec: saveFile
+            });
+        });
 
-        window.onload = () => { loadTree(); initResizers(); term.focus(); };
+        // 2. The Global Interlock
+        // Prevents the browser's "Save As" popup if the IDE loses focus
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                saveFile();
+            }
+        });
+        
+        window.onload = () => { 
+            initResizers();
+            
+            // If you added the settings modal earlier, keep this line. 
+            // If not, you can delete it.
+            if (typeof loadSettings === 'function') loadSettings(); 
+            
+            restoreWorkspaceState(); 
+            term.focus(); 
+        };
     </script>
 </body>
 </html>
