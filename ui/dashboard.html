@@ -1207,8 +1207,24 @@
         }
 
         async function gitAction(action, file = '') {
-            await fetch('/api/git/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, file, dir: currentDirectory }) });
-            refreshGitStatus();
+            try {
+                const res = await fetch('/api/git/action', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ action, file, dir: currentDirectory }) 
+                });
+                const data = await res.json();
+                
+                if (data.error) {
+                    term.write(`\r\n\x1b[31m[GIT ERROR] ${data.error}\x1b[0m\r\n`);
+                } else {
+                    if (action === 'push') sysLog("Successfully Pushed to GitHub.");
+                    if (action === 'pull') sysLog("Successfully Pulled from GitHub.");
+                }
+                refreshGitStatus();
+            } catch (err) {
+                term.write(`\r\n\x1b[31m[SYSTEM] Git handshake failed.\x1b[0m\r\n`);
+            }
         }
 
         async function commitChanges() {

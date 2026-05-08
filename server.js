@@ -196,7 +196,8 @@ const server = http.createServer(async (req, res) => {
                             case 'stage': command = `git -C "${targetDir}" add "${data.file}"`; break;
                             case 'unstage': command = `git -C "${targetDir}" reset HEAD "${data.file}"`; break;
                             case 'add-all': command = `git -C "${targetDir}" add .`; break;
-                            case 'push': command = `git -C "${targetDir}" push`; break;
+                            // --- UPGRADED SMART PUSH ---
+                            case 'push': command = `git -C "${targetDir}" push -u origin HEAD`; break;
                             case 'pull': command = `git -C "${targetDir}" pull`; break;
                         }
                         if (command) {
