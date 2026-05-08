@@ -524,36 +524,60 @@
     </div>
     
     <div class="modal-overlay" id="settingsModal">
-        <div class="modal-content">
+        <div class="modal-content" style="width: 500px;">
             <div class="modal-header">
                 <h3>System Preferences</h3>
                 <button class="close-btn" onclick="closeSettings()">✕</button>
             </div>
             
-            <div class="settings-group">
-                <label>Editor Theme</label>
-                <select id="set-theme">
-                    <option value="chaos">Chaos</option>
-                    <option value="industrial">Industrial</option>
-                    <option value="twilight">Twilight</option>
-                    <option value="tomorrow">Tomorrow Night</option>
-                </select>
+            <div class="settings-row">
+                <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                    <label>Editor Theme</label>
+                    <select id="set-theme">
+                        <option value="chaos">Chaos</option>
+                        <option value="industrial">Industrial</option>
+                        <option value="twilight">Twilight</option>
+                        <option value="tomorrow">Tomorrow Night</option>
+                    </select>
+                </div>
+                <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 5px; margin-top: 15px;">
+                    <input type="checkbox" id="set-autosave">
+                    <label style="margin: 0;">Enable Autosave (30s)</label>
+                </div>
             </div>
             
             <div class="settings-row">
                 <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                    <label>Editor Font Size (px)</label>
+                    <label>Editor Font Size</label>
                     <input type="number" id="set-ed-font" value="14" min="8" max="24">
                 </div>
                 <div class="settings-group" style="flex: 1;">
-                    <label>Terminal Font Size (px)</label>
+                    <label>Terminal Font Size</label>
                     <input type="number" id="set-tm-font" value="13" min="8" max="24">
                 </div>
             </div>
+
+            <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 10px 0; width: 100%;">
             
             <div class="settings-group">
-                <label>GitHub PAT (Local Auth)</label>
-                <input type="text" id="set-pat" placeholder="ghp_...">
+                <label>GitHub PAT (Authentication)</label>
+                <input type="password" id="set-pat" placeholder="ghp_...">
+            </div>
+
+            <div class="settings-group">
+                <label>Target Repository URL (Remote Origin)</label>
+                <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                    <label>Git Author Name</label>
+                    <input type="text" id="set-git-name" placeholder="John Doe">
+                </div>
+                <div class="settings-group" style="flex: 1;">
+                    <label>Git Author Email</label>
+                    <input type="text" id="set-git-email" placeholder="john@example.com">
+                </div>
             </div>
             
             <div class="modal-footer">
@@ -759,6 +783,7 @@
                     navHistory.push(currentDirectory);
                     navIndex++;
                 }
+                saveWorkspaceState();
                 parentElement = document.getElementById('fileList');
                 parentElement.innerHTML = '';
             }
@@ -888,6 +913,8 @@
             const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
             if (activeTab) activeTab.classList.add('active');
             editor.focus();
+            
+            saveWorkspaceState();
         }
 
         function closeTab(path) {
@@ -897,6 +924,8 @@
             const remaining = Object.keys(openTabs);
             if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
             else { currentOpenPath = ''; editor.setValue('', -1); }
+            
+            saveWorkspaceState();
         }
         
         async function createNewFile() {
@@ -1218,14 +1247,23 @@
         }
         
         // --- CONFIGURATION ENGINE ---
+        let autosaveInterval = null;
+
         function loadSettings() {
-            const defaults = { theme: 'chaos', edFont: 14, tmFont: 13, pat: '' };
+            const defaults = { 
+                theme: 'chaos', edFont: 14, tmFont: 13, 
+                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false 
+            };
             const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
             
-            document.getElementById('set-theme').value = saved.theme;
-            document.getElementById('set-ed-font').value = saved.edFont;
-            document.getElementById('set-tm-font').value = saved.tmFont;
-            document.getElementById('set-pat').value = saved.pat;
+            document.getElementById('set-theme').value = saved.theme || 'chaos';
+            document.getElementById('set-ed-font').value = saved.edFont || 14;
+            document.getElementById('set-tm-font').value = saved.tmFont || 13;
+            document.getElementById('set-pat').value = saved.pat || '';
+            document.getElementById('set-repo').value = saved.repo || '';
+            document.getElementById('set-git-name').value = saved.gitName || '';
+            document.getElementById('set-git-email').value = saved.gitEmail || '';
+            document.getElementById('set-autosave').checked = saved.autosave || false;
             
             applySettings(saved);
         }
@@ -1239,6 +1277,62 @@
             term.options.theme = Object.assign({}, t.term);
             term.options.fontSize = parseInt(config.tmFont);
             fitAddon.fit();
+
+            // Autosave Mechanic
+            if (config.autosave) {
+                if (!autosaveInterval) {
+                    autosaveInterval = setInterval(() => { 
+                        if (currentOpenPath) saveFile(); 
+                    }, 30000); // 30-second interval
+                }
+            } else {
+                if (autosaveInterval) { 
+                    clearInterval(autosaveInterval); 
+                    autosaveInterval = null; 
+                }
+            }
+        }
+
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+        async function saveSettings() {
+            const config = {
+                theme: document.getElementById('set-theme').value,
+                edFont: document.getElementById('set-ed-font').value,
+                tmFont: document.getElementById('set-tm-font').value,
+                pat: document.getElementById('set-pat').value,
+                repo: document.getElementById('set-repo').value,
+                gitName: document.getElementById('set-git-name').value,
+                gitEmail: document.getElementById('set-git-email').value,
+                autosave: document.getElementById('set-autosave').checked
+            };
+            
+            localStorage.setItem('crucible-settings', JSON.stringify(config));
+            applySettings(config);
+            closeSettings();
+            term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
+
+            // Background execution: Push configurations to the local Git repository
+            if (config.gitName || config.gitEmail) {
+                try {
+                    await fetch('/api/git/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: config.gitName, email: config.gitEmail, dir: currentDirectory })
+                    });
+                } catch (e) { /* Fails silently if not a git repo yet */ }
+            }
+            
+            if (config.repo) {
+                try {
+                    await fetch('/api/git/remote', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: config.repo, dir: currentDirectory })
+                    });
+                } catch (e) { /* Fails silently if not a git repo yet */ }
+            }
         }
 
         function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
@@ -1298,6 +1392,60 @@
             term.focus(); 
         };
         
+        // --- WORKSPACE STATE ENGINE ---
+        function saveWorkspaceState() {
+            // Wait a microsecond for the UI to settle before taking the snapshot
+            setTimeout(() => {
+                const state = {
+                    dir: currentDirectory,
+                    tabs: Object.keys(openTabs),
+                    active: currentOpenPath
+                };
+                localStorage.setItem('crucible-workspace', JSON.stringify(state));
+            }, 50);
+        }
+
+        async function restoreWorkspaceState() {
+            const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
+            
+            if (!saved || !saved.dir) {
+                // First boot ever: load root
+                loadTree();
+                return;
+            }
+
+            // 1. Restore the directory tree
+            await loadTree(saved.dir);
+
+            // 2. Re-open all the tabs silently
+            if (saved.tabs && saved.tabs.length > 0) {
+                for (const path of saved.tabs) {
+                    try {
+                        const fileName = path.split(/[\\/]/).pop();
+                        const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
+                        if (!res.ok) continue; // Skip if file was deleted externally
+                        
+                        const content = await res.text();
+                        const syntaxMode = getSyntaxMode(fileName);
+                        const session = ace.createEditSession(content, syntaxMode);
+                        session.setUseWrapMode(editor.getOption("wrap") !== "off");
+                        
+                        openTabs[path] = { session, name: fileName };
+                        createTabUI(path, fileName);
+                    } catch(e) { console.error("Could not restore tab: " + path); }
+                }
+            }
+
+            // 3. Focus the tab you were actually looking at
+            if (saved.active && openTabs[saved.active]) {
+                switchTab(saved.active);
+            } else {
+                // If no active tab, but tabs exist, focus the last one
+                const remaining = Object.keys(openTabs);
+                if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
+            }
+        }
+        
         // --- RECALIBRATED: Match the 3-column array ---
         function toggleSidebar() {
             const sb = document.getElementById('mainSidebar');
@@ -1316,9 +1464,35 @@
             fitAddon.fit();
         }
 
-        editor.commands.addCommand({ name: 'save', bindKey: {win: 'Ctrl-S', mac: 'Cmd-S'}, exec: saveFile });
+        // --- GLOBAL KEYBINDING ENGINE ---
+        // 1. Bind strictly to the Ace Editors
+        [editor, outputEditor].forEach(ed => {
+            ed.commands.addCommand({
+                name: 'save',
+                bindKey: { win: 'Ctrl-S', mac: 'Cmd-S' },
+                exec: saveFile
+            });
+        });
 
-        window.onload = () => { loadTree(); initResizers(); term.focus(); };
+        // 2. The Global Interlock
+        // Prevents the browser's "Save As" popup if the IDE loses focus
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                saveFile();
+            }
+        });
+        
+        window.onload = () => { 
+            initResizers();
+            
+            // If you added the settings modal earlier, keep this line. 
+            // If not, you can delete it.
+            if (typeof loadSettings === 'function') loadSettings(); 
+            
+            restoreWorkspaceState(); 
+            term.focus(); 
+        };
     </script>
 </body>
 </html>
