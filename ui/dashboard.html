@@ -26,8 +26,8 @@
             transition: none;
             user-select: none;
         }
-        body.dragging .editor-container, 
-        body.dragging .output-container, 
+        body.dragging .editor-container,
+        body.dragging .output-container,
         body.dragging .terminal-container {
             pointer-events: none;
         }
@@ -321,7 +321,7 @@
             color: #fff;
             border-color: #444;
         }
-        
+
         /* SIDEBAR TABS & VIEWS */
         .sidebar-tabs {
             display: flex;
@@ -401,7 +401,7 @@
         .status-A { color: #2ecc71; } /* Added */
         .status-D { color: #e74c3c; } /* Deleted */
         .status-U { color: #3498db; } /* Untracked */
-        
+
         /* SETTINGS MODAL */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 1000; align-items: center; justify-content: center; }
         .modal-content { background: #0a0a0a; border: 1px solid #222; width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
@@ -463,7 +463,7 @@
                 <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
                 <button onclick="setGitRemote()" style="width: 100%; margin-top: 5px; color: #9b59b6;">SET REMOTE</button>
             </div>
-            
+
             <div class="toolbar" style="margin-top: 10px;">
                 <button onclick="gitAction('pull')" title="Pull from Remote">PULL ↓</button>
                 <button onclick="gitAction('push')" title="Push to Remote">PUSH ↑</button>
@@ -482,7 +482,7 @@
     <div class="editor-container">
         <div class="controls">
             <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
-            
+
             <button onclick="saveFile()">Save</button>
             <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
 
@@ -500,12 +500,12 @@
     <div id="shadowStatus" title="Shadow Forge Integrity"></div>
     <div class="output-container">
         <div class="controls">
-            
+
             <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
-            
+
             <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
             <button onclick="askAI()" id="execBtn">Execute</button>
-            
+
             <div id="viewportControls" style="display: none; gap: 5px;">
                 <button onclick="setViewport('100%')">Desktop</button>
                 <button onclick="setViewport('768px')">Tablet</button>
@@ -515,21 +515,21 @@
 
             <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
             <button onclick="applyDiffMerge()" id="mergeBtn" style="color: #2ecc71;">Merge</button>
-            
+
             <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
         </div>
-        
+
         <div id="outputEditor"></div>
         <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
     </div>
-    
+
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content" style="width: 500px;">
             <div class="modal-header">
                 <h3>System Preferences</h3>
                 <button class="close-btn" onclick="closeSettings()">✕</button>
             </div>
-            
+
             <div class="settings-row">
                 <div class="settings-group" style="flex: 1; margin-right: 10px;">
                     <label>Editor Theme</label>
@@ -551,7 +551,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="settings-row">
                 <div class="settings-group" style="flex: 1; margin-right: 10px;">
                     <label>Editor Font Size</label>
@@ -564,7 +564,7 @@
             </div>
 
             <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 10px 0; width: 100%;">
-            
+
             <div class="settings-group">
                 <label>GitHub PAT (Authentication)</label>
                 <input type="password" id="set-pat" placeholder="ghp_...">
@@ -585,14 +585,14 @@
                     <input type="text" id="set-git-email" placeholder="john@example.com">
                 </div>
             </div>
-            
+
             <div class="modal-footer">
                 <button onclick="closeSettings()" style="background: transparent; border: 1px solid #222;">Cancel</button>
                 <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71;">Save Changes</button>
             </div>
         </div>
     </div>
-    
+
     <div class="terminal-container">
         <div id="terminalBox"></div>
     </div>
@@ -605,7 +605,7 @@
         let currentOpenPath = '', currentDirectory = '';
         let openTabs = {};
         let navHistory = [], navIndex = -1;
-        
+
         const getSyntaxMode = (fileName) => {
             const ext = fileName.split('.').pop().toLowerCase();
             const modeMap = {
@@ -716,7 +716,7 @@
                 resizer.onmousedown = (e) => {
                     body.classList.add('dragging');
                     resizer.classList.add('active');
-                    
+
                     document.onmousemove = (moveE) => {
                         const cols = body.style.gridTemplateColumns.split(' ');
                         const rows = body.style.gridTemplateRows.split(' ');
@@ -735,7 +735,7 @@
                         [editor, outputEditor].forEach(ed => ed.resize());
                         fitAddon.fit();
                     };
-                    
+
                     document.onmouseup = () => {
                         body.classList.remove('dragging');
                         resizer.classList.remove('active');
@@ -879,10 +879,10 @@
         async function openFile(path) {
             const fileName = path.split(/[\\/]/).pop();
             if (openTabs[path]) { switchTab(path); return; }
-            
+
             const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
             const content = await res.text();
-            
+
             // --- DYNAMIC SYNTAX DETECTION ---
             const syntaxMode = getSyntaxMode(fileName);
             const session = ace.createEditSession(content, syntaxMode);
@@ -919,7 +919,7 @@
             const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
             if (activeTab) activeTab.classList.add('active');
             editor.focus();
-            
+
             saveWorkspaceState();
         }
 
@@ -930,38 +930,32 @@
             const remaining = Object.keys(openTabs);
             if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
             else { currentOpenPath = ''; editor.setValue('', -1); }
-            
+
             saveWorkspaceState();
         }
-        
+
         async function createNewFile() {
             const name = prompt("File Name (include extension, e.g., module.js):");
             if (!name) return;
-            
+
             const newPath = `${currentDirectory}/${name}`;
-            
+
             // Push an empty string to the write endpoint to allocate the file
-            await fetch('/api/write', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ path: newPath, content: '' }) 
+            await fetch('/api/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: newPath, content: '' })
             });
-            
+
             // Refresh the tree and immediately open the new file in the buffer
             loadTree(currentDirectory);
             openFile(newPath);
         }
-        
+
         async function saveFile() {
             if (!currentOpenPath) return;
-            await fetch('/api/write', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ path: currentOpenPath, content: editor.getValue() }) 
-            });
-            
-            // --- TELEMETRY REROUTE SPLICE ---
-            sysLog(`Saved: ${currentOpenPath.split(/[\\/]/).pop()}`);
+            await fetch('/api/write', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentOpenPath, content: editor.getValue() }) });
+            term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
         }
 
         async function startIndexing() {
@@ -981,11 +975,6 @@
             const input = document.getElementById('aiInput');
             const directive = input.value;
             if (!directive) return;
-            
-            // Log to history and reset index
-            aiCmdHistory.push(directive);
-            aiCmdIndex = -1;
-            
             const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
             input.value = 'PROCESSING...';
             try {
@@ -995,11 +984,11 @@
             } catch (e) { term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`); }
             input.value = '';
         }
-        
+
         async function runShadowTest() {
             if (!currentOpenPath) return;
             const content = outputEditor.getValue();
-            
+
             // Optional: If you kept the #shadowStatus square, you can update its color here.
             // If you stripped it during the rollback, just rely on the terminal output.
             const ind = document.getElementById('shadowStatus');
@@ -1011,7 +1000,7 @@
             // Code is perfectly valid
             ind.style.backgroundColor = '#2ecc71'; // Turns Green
             }
-            
+
             const res = await fetch('/api/shadow-test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1038,7 +1027,7 @@
             editor.setValue(outputEditor.getValue(), -1);
             term.write(`\r\n\x1b[34m[SYSTEM] Differential merge applied to buffer.\x1b[0m\r\n`);
         }
-        
+
         // --- ENHANCED LIVE PREVIEW ENGINE ---
         let isPreviewActive = false;
         let previewTimeout;
@@ -1047,7 +1036,7 @@
             const preview = document.getElementById('previewFrame');
             const outputEd = document.getElementById('outputEditor');
             const btn = document.getElementById('previewBtn');
-            
+
             // UI Element Targeting
             const vpControls = document.getElementById('viewportControls');
             const verifyBtn = document.getElementById('verifyBtn');
@@ -1059,11 +1048,11 @@
             isPreviewActive = !isPreviewActive;
 
             if (isPreviewActive) {
-                outputEd.style.display = 'none'; 
+                outputEd.style.display = 'none';
                 preview.style.display = 'block';
-                btn.style.color = '#e74c3c'; 
+                btn.style.color = '#e74c3c';
                 btn.innerText = 'Close';
-                
+
                 // Swap Controls
                 vpControls.style.display = 'flex';
                 verifyBtn.style.display = 'none';
@@ -1073,11 +1062,11 @@
                 wrapBtn.style.display = 'none';
 
                 setViewport('100%'); // Default to desktop
-                renderPreview(); 
+                renderPreview();
             } else {
-                preview.style.display = 'none'; 
+                preview.style.display = 'none';
                 outputEd.style.display = 'block';
-                btn.style.color = '#3498db'; 
+                btn.style.color = '#3498db';
                 btn.innerText = 'Preview';
 
                 // Restore Controls
@@ -1103,8 +1092,8 @@
         function togglePreviewBackground() {
             const preview = document.getElementById('previewFrame');
             const states = [
-                '#ffffff', 
-                '#0a0a0a', 
+                '#ffffff',
+                '#0a0a0a',
                 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23222\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23111\'/%3E%3C/svg%3E")'
             ];
             previewBgState = (previewBgState + 1) % states.length;
@@ -1114,7 +1103,7 @@
         function renderPreview() {
             if (!isPreviewActive) return;
             const code = editor.getValue();
-            
+
             // The Interceptor: Strictly piped from the iframe to the parent IDE
             const interceptor = `
                 <script>
@@ -1134,10 +1123,10 @@
                     };
                 <\/script>
             `;
-            
-            document.getElementById('previewFrame').srcdoc = interceptor + code; 
+
+            document.getElementById('previewFrame').srcdoc = interceptor + code;
         }
-        
+
         // --- SOURCE CONTROL ENGINE ---
         function switchSidebar(viewName) {
             document.querySelectorAll('.sidebar-view').forEach(v => v.classList.remove('active'));
@@ -1146,7 +1135,7 @@
             document.getElementById(`tab-${viewName}`).classList.add('active');
             if (viewName === 'git') refreshGitStatus();
         }
-        
+
         async function setGitRemote() {
             const remoteUrl = prompt("Enter GitHub Repository URL (HTTPS or SSH):");
             if (!remoteUrl) return;
@@ -1168,7 +1157,7 @@
                 term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
             }
         }
-        
+
         async function refreshGitStatus() {
             const list = document.getElementById('gitStatusList');
             list.innerHTML = '<div style="color: #555;">SCANNING REPOSITORY...</div>';
@@ -1176,7 +1165,7 @@
                 const res = await fetch(`/api/git/status?dir=${encodeURIComponent(currentDirectory)}`);
                 const data = await res.json();
                 list.innerHTML = '';
-                
+
                 if (data.staged.length > 0) {
                     list.innerHTML += `<div class="git-header"><span>STAGED CHANGES</span></div>`;
                     data.staged.forEach(item => list.appendChild(createGitItem(item, true)));
@@ -1195,8 +1184,8 @@
             const div = document.createElement('div');
             div.className = 'git-item';
             const fileName = item.file.split(/[\\/]/).pop();
-            const actionBtn = isStaged ? 
-                `<button onclick="gitAction('unstage', '${item.file}')" title="Unstage">-</button>` : 
+            const actionBtn = isStaged ?
+                `<button onclick="gitAction('unstage', '${item.file}')" title="Unstage">-</button>` :
                 `<button onclick="gitAction('stage', '${item.file}')" title="Stage">+</button>`;
             div.innerHTML = `
                 <span onclick="openFile('${item.file}')" style="flex-grow: 1;">${fileName}</span>
@@ -1207,24 +1196,8 @@
         }
 
         async function gitAction(action, file = '') {
-            try {
-                const res = await fetch('/api/git/action', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ action, file, dir: currentDirectory }) 
-                });
-                const data = await res.json();
-                
-                if (data.error) {
-                    term.write(`\r\n\x1b[31m[GIT ERROR] ${data.error}\x1b[0m\r\n`);
-                } else {
-                    if (action === 'push') sysLog("Successfully Pushed to GitHub.");
-                    if (action === 'pull') sysLog("Successfully Pulled from GitHub.");
-                }
-                refreshGitStatus();
-            } catch (err) {
-                term.write(`\r\n\x1b[31m[SYSTEM] Git handshake failed.\x1b[0m\r\n`);
-            }
+            await fetch('/api/git/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, file, dir: currentDirectory }) });
+            refreshGitStatus();
         }
 
         async function commitChanges() {
@@ -1236,18 +1209,18 @@
             refreshGitStatus();
             term.write(`\r\n\x1b[32m[SYSTEM] Git Commit Executed.\x1b[0m\r\n`);
         }
-        
+
         async function authenticateGit() {
             const token = prompt("Enter GitHub Personal Access Token (PAT):");
             if (!token) return;
-            
+
             try {
-                const res = await fetch('/api/git/auth', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ token: token, dir: currentDirectory }) 
+                const res = await fetch('/api/git/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token, dir: currentDirectory })
                 });
-                
+
                 const data = await res.json();
                 if (data.error) {
                     term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
@@ -1258,7 +1231,7 @@
                 term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
             }
         }
-        
+
         async function initGitRepo() {
             try {
                 const res = await fetch('/api/git/action', {
@@ -1267,7 +1240,7 @@
                     body: JSON.stringify({ action: 'init', dir: currentDirectory })
                 });
                 const data = await res.json();
-                
+
                 if (data.error) {
                     term.write(`\r\n\x1b[31m[GIT ERROR] ${data.error}\x1b[0m\r\n`);
                 } else {
@@ -1278,18 +1251,18 @@
                 term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
             }
         }
-        
+
         // --- CONFIGURATION ENGINE (Cyclic Auto-Backup) ---
         let autosaveInterval = null;
         let autosaveCounter = 1;
 
         function loadSettings() {
-            const defaults = { 
-                theme: 'chaos', edFont: 14, tmFont: 13, 
-                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false, autosaveMax: 5 
+            const defaults = {
+                theme: 'chaos', edFont: 14, tmFont: 13,
+                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false, autosaveMax: 5
             };
             const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
-            
+
             document.getElementById('set-theme').value = saved.theme || 'chaos';
             document.getElementById('set-ed-font').value = saved.edFont || 14;
             document.getElementById('set-tm-font').value = saved.tmFont || 13;
@@ -1299,37 +1272,36 @@
             document.getElementById('set-git-email').value = saved.gitEmail || '';
             document.getElementById('set-autosave').checked = saved.autosave || false;
             document.getElementById('set-autosave-max').value = saved.autosaveMax || 5;
-            
+
             applySettings(saved);
         }
 
         async function createAutoBackup(maxDepth) {
             if (!currentOpenPath) return;
-            
+
             const content = editor.getValue();
             const parts = currentOpenPath.split(/[\\/]/);
             const fileName = parts.pop();
             const dir = parts.join('/');
-            
+
             // Construct the rolling backup path
             const backupName = `autosaved_${autosaveCounter}_${fileName}`;
             const backupPath = dir ? `${dir}/${backupName}` : backupName;
 
             try {
                 // Pipe to the standard write endpoint
-                await fetch('/api/write', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ path: backupPath, content: content }) 
+                await fetch('/api/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: backupPath, content: content })
                 });
-                
-                // --- TELEMETRY REROUTE SPLICE ---
-                sysLog(`Auto-backup secured: ${backupName}`);
-                
+
+                term.write(`\r\n\x1b[90m[SYSTEM] Auto-backup secured: ${backupName}\x1b[0m\r\n`);
+
                 // Increment and enforce the cyclic limit
                 autosaveCounter++;
                 if (autosaveCounter > maxDepth) autosaveCounter = 1;
-                
+
                 // Silently refresh the tree UI if looking at the active directory
                 if (dir === currentDirectory || (!dir && currentDirectory === '/')) {
                     loadTree(currentDirectory, null, true);
@@ -1352,14 +1324,14 @@
             // Auto-Backup Mechanic
             if (config.autosave) {
                 if (!autosaveInterval) {
-                    autosaveInterval = setInterval(() => { 
+                    autosaveInterval = setInterval(() => {
                         createAutoBackup(parseInt(config.autosaveMax) || 5);
-                    }, 300000); 
+                    }, 300000);
                 }
             } else {
-                if (autosaveInterval) { 
-                    clearInterval(autosaveInterval); 
-                    autosaveInterval = null; 
+                if (autosaveInterval) {
+                    clearInterval(autosaveInterval);
+                    autosaveInterval = null;
                 }
             }
         }
@@ -1379,7 +1351,7 @@
                 autosave: document.getElementById('set-autosave').checked,
                 autosaveMax: parseInt(document.getElementById('set-autosave-max').value) || 5
             };
-            
+
             localStorage.setItem('crucible-settings', JSON.stringify(config));
             applySettings(config);
             closeSettings();
@@ -1399,7 +1371,7 @@
         async function authenticateGit() {
             const saved = JSON.parse(localStorage.getItem('crucible-settings')) || {};
             let token = saved.pat;
-            
+
             if (!token) {
                 token = prompt("Enter GitHub Personal Access Token (PAT):");
                 if (token) {
@@ -1408,16 +1380,16 @@
                     document.getElementById('set-pat').value = token;
                 }
             }
-            
+
             if (!token) return;
-            
+
             try {
-                const res = await fetch('/api/git/auth', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ token: token, dir: currentDirectory }) 
+                const res = await fetch('/api/git/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token, dir: currentDirectory })
                 });
-                
+
                 const data = await res.json();
                 if (data.error) term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
                 else term.write(`\r\n\x1b[32m[SYSTEM] Git Authentication Token Injected.\x1b[0m\r\n`);
@@ -1428,13 +1400,13 @@
 
         // --- UPDATED INITIALIZATION ---
         // Overwrite the existing window.onload at the very bottom of the script
-        window.onload = () => { 
-            loadTree(); 
-            initResizers(); 
-            loadSettings(); 
-            term.focus(); 
+        window.onload = () => {
+            loadTree();
+            initResizers();
+            loadSettings();
+            term.focus();
         };
-        
+
         // --- WORKSPACE STATE ENGINE ---
         function saveWorkspaceState() {
             // Wait a microsecond for the UI to settle before taking the snapshot
@@ -1450,7 +1422,7 @@
 
         async function restoreWorkspaceState() {
             const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
-            
+
             if (!saved || !saved.dir) {
                 // First boot ever: load root
                 loadTree();
@@ -1467,12 +1439,12 @@
                         const fileName = path.split(/[\\/]/).pop();
                         const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
                         if (!res.ok) continue; // Skip if file was deleted externally
-                        
+
                         const content = await res.text();
                         const syntaxMode = getSyntaxMode(fileName);
                         const session = ace.createEditSession(content, syntaxMode);
                         session.setUseWrapMode(editor.getOption("wrap") !== "off");
-                        
+
                         openTabs[path] = { session, name: fileName };
                         createTabUI(path, fileName);
                     } catch(e) { console.error("Could not restore tab: " + path); }
@@ -1488,66 +1460,25 @@
                 if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
             }
         }
-        
+
         // --- RECALIBRATED: Match the 3-column array ---
         function toggleSidebar() {
             const sb = document.getElementById('mainSidebar');
             const body = document.body;
             const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-    
+
             sb.classList.toggle('collapsed');
-    
+
             if (sb.classList.contains('collapsed')) {
                 body.style.gridTemplateColumns = "40px 1fr 1fr";
             } else {
                 body.style.gridTemplateColumns = savedLayout.cols;
             }
-    
+
             [editor, outputEditor].forEach(ed => ed.resize());
             fitAddon.fit();
         }
-        
-        // --- TELEMETRY ROUTER ---
-        let statusTimeout;
-        function sysLog(message, isError = false) {
-            const statusEl = document.getElementById('coreStatus');
-            statusEl.innerText = message;
-            statusEl.style.color = isError ? '#e74c3c' : '#2ecc71';
-            
-            clearTimeout(statusTimeout);
-            statusTimeout = setTimeout(() => {
-                statusEl.innerText = 'System Operational';
-                statusEl.style.color = '#444'; 
-            }, 4000);
-        }
-        
-        // --- AI COMMAND HISTORY ENGINE ---
-        const aiCmdHistory = [];
-        let aiCmdIndex = -1;
 
-        const aiInputEl = document.getElementById('aiInput');
-        aiInputEl.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                askAI();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (aiCmdHistory.length > 0) {
-                    aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
-                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-                }
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (aiCmdIndex > 0) {
-                    aiCmdIndex--;
-                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-                } else if (aiCmdIndex === 0) {
-                    aiCmdIndex = -1;
-                    this.value = '';
-                }
-            }
-        });
-        
         // --- GLOBAL KEYBINDING ENGINE ---
         // 1. Bind strictly to the Ace Editors
         [editor, outputEditor].forEach(ed => {
@@ -1566,16 +1497,16 @@
                 saveFile();
             }
         });
-        
-        window.onload = () => { 
+
+        window.onload = () => {
             initResizers();
-            
-            // If you added the settings modal earlier, keep this line. 
+
+            // If you added the settings modal earlier, keep this line.
             // If not, you can delete it.
-            if (typeof loadSettings === 'function') loadSettings(); 
-            
-            restoreWorkspaceState(); 
-            term.focus(); 
+            if (typeof loadSettings === 'function') loadSettings();
+
+            restoreWorkspaceState();
+            term.focus();
         };
     </script>
 </body>

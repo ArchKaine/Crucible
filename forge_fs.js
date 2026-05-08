@@ -17,13 +17,13 @@ module.exports = {
     listFiles: (targetDir) => {
         const secureDir = module.exports.validatePath(targetDir);
         if (!fs.existsSync(secureDir)) throw new Error("Directory does not exist.");
-
+        
         const list = fs.readdirSync(secureDir, { withFileTypes: true }).map(e => ({
-            name: e.name,
-            path: path.join(secureDir, e.name),
-                                                                                  isDirectory: e.isDirectory()
+            name: e.name, 
+            path: path.join(secureDir, e.name), 
+            isDirectory: e.isDirectory()
         })).sort((a, b) => b.isDirectory - a.isDirectory || a.name.localeCompare(b.name));
-
+        
         return { currentDir: secureDir, entries: list };
     },
 
@@ -115,13 +115,13 @@ module.exports = {
 
         for (let i = 0; i < total; i++) {
             const filePath = filesToProcess[i];
-
+            
             if (indexedPaths.has(filePath)) {
                 onProgress({
                     current: i + 1,
                     total: total,
                     file: `SKIPPED: ${path.basename(filePath)}`,
-                           percent: Math.round(((i + 1) / total) * 100)
+                    percent: Math.round(((i + 1) / total) * 100)
                 });
                 continue;
             }
@@ -132,12 +132,12 @@ module.exports = {
                     const vector = await getEmbedding(content);
                     const entry = {
                         path: filePath,
-                        text: content.substring(0, 2500),
+                        text: content.substring(0, 2500), 
                         vector: vector
                     };
                     stream.write(JSON.stringify(entry) + '\n');
                 }
-            } catch (e) {
+            } catch (e) { 
                 console.error(`Sync error on ${filePath}: ${e.message}`);
             }
 
@@ -145,23 +145,23 @@ module.exports = {
                 current: i + 1,
                 total: total,
                 file: path.basename(filePath),
-                       percent: Math.round(((i + 1) / total) * 100)
+                percent: Math.round(((i + 1) / total) * 100)
             });
         }
 
         stream.end();
-        return true;
+        return true; 
     },
-
+    
     // --- SECURE GREP SEARCH ---
     searchFiles: (query, dir) => {
         return new Promise((resolve) => {
             const secureDir = module.exports.validatePath(dir || process.cwd());
-
+            
             // Strip dangerous shell characters
             const sanitizedQuery = query.replace(/(["'$`\\])/g, '\\$1');
             const cmd = `grep -riIn "${sanitizedQuery}" "${secureDir}" --exclude-dir={.git,node_modules,ui}`;
-
+            
             exec(cmd, { maxBuffer: 1024 * 1024 * 10 }, (err, stdout) => {
                 const results = (stdout || "").split('\n').filter(l => l.trim() !== "").map(line => {
                     const [f, n, ...t] = line.split(':');
