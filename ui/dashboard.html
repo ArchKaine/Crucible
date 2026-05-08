@@ -549,6 +549,10 @@
                         <label style="margin: 0;">Depth:</label>
                         <input type="number" id="set-autosave-max" value="5" min="1" max="20" style="width: 45px; padding: 2px 4px;">
                     </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <label style="margin: 0;">Secs:</label>
+                        <input type="number" id="set-autosave-interval" value="30" min="5" max="600" style="width: 45px; padding: 2px 4px;">
+                    </div>
                 </div>
             </div>
 
@@ -973,8 +977,13 @@
 
         async function askAI() {
             const input = document.getElementById('aiInput');
-            const directive = input.value;
+            const directive = input.value.trim();
             if (!directive) return;
+            
+            // Log to history and reset index
+            aiCmdHistory.push(directive);
+            aiCmdIndex = -1;
+            
             const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
             input.value = 'PROCESSING...';
             try {
@@ -1252,57 +1261,55 @@
             }
         }
 
-        // --- CONFIGURATION ENGINE (Cyclic Auto-Backup) ---
+        // --- CONFIGURATION ENGINE (Fault-Tolerant) ---
         let autosaveInterval = null;
         let autosaveCounter = 1;
 
         function loadSettings() {
-            const defaults = {
-                theme: 'chaos', edFont: 14, tmFont: 13,
-                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false, autosaveMax: 5
+            const defaults = { 
+                theme: 'chaos', edFont: 14, tmFont: 13, 
+                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false, autosaveMax: 5, autosaveSecs: 30 
             };
             const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
-
-            document.getElementById('set-theme').value = saved.theme || 'chaos';
-            document.getElementById('set-ed-font').value = saved.edFont || 14;
-            document.getElementById('set-tm-font').value = saved.tmFont || 13;
-            document.getElementById('set-pat').value = saved.pat || '';
-            document.getElementById('set-repo').value = saved.repo || '';
-            document.getElementById('set-git-name').value = saved.gitName || '';
-            document.getElementById('set-git-email').value = saved.gitEmail || '';
-            document.getElementById('set-autosave').checked = saved.autosave || false;
-            document.getElementById('set-autosave-max').value = saved.autosaveMax || 5;
-
+            
+            // Safely populate UI if elements exist
+            if (document.getElementById('set-theme')) document.getElementById('set-theme').value = saved.theme || 'chaos';
+            if (document.getElementById('set-ed-font')) document.getElementById('set-ed-font').value = saved.edFont || 14;
+            if (document.getElementById('set-tm-font')) document.getElementById('set-tm-font').value = saved.tmFont || 13;
+            if (document.getElementById('set-pat')) document.getElementById('set-pat').value = saved.pat || '';
+            if (document.getElementById('set-repo')) document.getElementById('set-repo').value = saved.repo || '';
+            if (document.getElementById('set-git-name')) document.getElementById('set-git-name').value = saved.gitName || '';
+            if (document.getElementById('set-git-email')) document.getElementById('set-git-email').value = saved.gitEmail || '';
+            if (document.getElementById('set-autosave')) document.getElementById('set-autosave').checked = saved.autosave || false;
+            if (document.getElementById('set-autosave-max')) document.getElementById('set-autosave-max').value = saved.autosaveMax || 5;
+            if (document.getElementById('set-autosave-interval')) document.getElementById('set-autosave-interval').value = saved.autosaveSecs || 30;
+            
             applySettings(saved);
         }
 
         async function createAutoBackup(maxDepth) {
             if (!currentOpenPath) return;
-
+            
             const content = editor.getValue();
             const parts = currentOpenPath.split(/[\\/]/);
             const fileName = parts.pop();
             const dir = parts.join('/');
-
-            // Construct the rolling backup path
+            
             const backupName = `autosaved_${autosaveCounter}_${fileName}`;
             const backupPath = dir ? `${dir}/${backupName}` : backupName;
 
             try {
-                // Pipe to the standard write endpoint
-                await fetch('/api/write', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: backupPath, content: content })
+                await fetch('/api/write', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ path: backupPath, content: content }) 
                 });
-
+                
                 term.write(`\r\n\x1b[90m[SYSTEM] Auto-backup secured: ${backupName}\x1b[0m\r\n`);
-
-                // Increment and enforce the cyclic limit
+                
                 autosaveCounter++;
                 if (autosaveCounter > maxDepth) autosaveCounter = 1;
-
-                // Silently refresh the tree UI if looking at the active directory
+                
                 if (dir === currentDirectory || (!dir && currentDirectory === '/')) {
                     loadTree(currentDirectory, null, true);
                 }
@@ -1321,18 +1328,16 @@
             term.options.fontSize = parseInt(config.tmFont);
             fitAddon.fit();
 
-            // Auto-Backup Mechanic
+            if (autosaveInterval) { 
+                clearInterval(autosaveInterval); 
+                autosaveInterval = null; 
+            }
+
             if (config.autosave) {
-                if (!autosaveInterval) {
-                    autosaveInterval = setInterval(() => {
-                        createAutoBackup(parseInt(config.autosaveMax) || 5);
-                    }, 300000);
-                }
-            } else {
-                if (autosaveInterval) {
-                    clearInterval(autosaveInterval);
-                    autosaveInterval = null;
-                }
+                const intervalMs = (parseInt(config.autosaveSecs) || 30) * 1000;
+                autosaveInterval = setInterval(() => { 
+                    createAutoBackup(parseInt(config.autosaveMax) || 5);
+                }, intervalMs); 
             }
         }
 
@@ -1340,24 +1345,28 @@
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
 
         async function saveSettings() {
+            // Optional chaining (?.) prevents crashes if an HTML element is missing
             const config = {
-                theme: document.getElementById('set-theme').value,
-                edFont: document.getElementById('set-ed-font').value,
-                tmFont: document.getElementById('set-tm-font').value,
-                pat: document.getElementById('set-pat').value,
-                repo: document.getElementById('set-repo').value,
-                gitName: document.getElementById('set-git-name').value,
-                gitEmail: document.getElementById('set-git-email').value,
-                autosave: document.getElementById('set-autosave').checked,
-                autosaveMax: parseInt(document.getElementById('set-autosave-max').value) || 5
+                theme: document.getElementById('set-theme')?.value || 'chaos',
+                edFont: document.getElementById('set-ed-font')?.value || 14,
+                tmFont: document.getElementById('set-tm-font')?.value || 13,
+                pat: document.getElementById('set-pat')?.value || '',
+                repo: document.getElementById('set-repo')?.value || '',
+                gitName: document.getElementById('set-git-name')?.value || '',
+                gitEmail: document.getElementById('set-git-email')?.value || '',
+                autosave: document.getElementById('set-autosave')?.checked || false,
+                autosaveMax: parseInt(document.getElementById('set-autosave-max')?.value) || 5,
+                autosaveSecs: parseInt(document.getElementById('set-autosave-interval')?.value) || 30
             };
-
+            
+            // This is the critical line that was failing previously
             localStorage.setItem('crucible-settings', JSON.stringify(config));
+            
             applySettings(config);
             closeSettings();
             term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
 
-            // Background Git Configurations
+            // Push Git Configurations to the Node.js backend
             if (config.gitName || config.gitEmail) {
                 try { await fetch('/api/git/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: config.gitName, email: config.gitEmail, dir: currentDirectory }) }); } catch (e) {}
             }
@@ -1478,7 +1487,34 @@
             [editor, outputEditor].forEach(ed => ed.resize());
             fitAddon.fit();
         }
+        
+        // --- AI COMMAND HISTORY ENGINE ---
+        const aiCmdHistory = [];
+        let aiCmdIndex = -1;
 
+        const aiInputEl = document.getElementById('aiInput');
+        aiInputEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                askAI();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (aiCmdHistory.length > 0) {
+                    aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
+                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (aiCmdIndex > 0) {
+                    aiCmdIndex--;
+                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                } else if (aiCmdIndex === 0) {
+                    aiCmdIndex = -1;
+                    this.value = '';
+                }
+            }
+        });
+        
         // --- GLOBAL KEYBINDING ENGINE ---
         // 1. Bind strictly to the Ace Editors
         [editor, outputEditor].forEach(ed => {
