@@ -1390,6 +1390,7 @@
             }
 
             async function gitAction(action, file = '') {
+<<<<<<< HEAD
                 try {
                     const res = await fetch('/api/git/action', {
                         method: 'POST',
@@ -1419,6 +1420,15 @@
                     term.write(`\r\n\x1b[31m[SYSTEM ERROR] Failed to reach Git API: ${e.message}\x1b[0m\r\n`);
                 }
 
+=======
+                await fetch('/api/git/action', {
+                    method: 'POST', headers: {
+                        'Content-Type': 'application/json'
+                    }, body: JSON.stringify({
+                            action, file, dir: currentDirectory
+                        })
+                });
+>>>>>>> ff84de56486d2f088804bcc964b6c0899ac5362e
                 refreshGitStatus();
             }
 
