@@ -42,7 +42,20 @@ const Bridge = {
             return { status: 'error', data: `Execution failed: ${error.message}` };
         }
     },
+    
+    function saveNatively(path, content) {
+    // window.external.sendMessage is provided automatically by Photino
+    window.external.sendMessage(`SAVE:${path}|${content}`);
+    }
 
+        // To receive confirmation from C#
+        window.external.receiveMessage(message => {
+        if (message.startsWith("NOTIFY:")) {
+        console.log(message.replace("NOTIFY: ", ""));
+        term.write(`\r\n\x1b[32m[SYSTEM] ${message}\x1b[0m\r\n`);
+        }
+    });
+    
     /**
      * Executes syntax verification in a temporary shadow directory.
      * Prevents the 14B model from breaking the active codebase.

@@ -620,6 +620,8 @@
                     <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
                     <input type="text" id="commitMessage" placeholder="Commit message...">
                     <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
+                    <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
+                    <button onclick="setGitRemote()" style="width: 100%; margin-top: 5px; color: #9b59b6;">SET REMOTE</button>
                 </div>
 
                 <div class="toolbar" style="margin-top: 10px;">
@@ -629,16 +631,6 @@
                 </div>
 
                 <div id="gitStatusList" class="git-list"></div>
-            </div>
-
-            <div id="view-history" class="sidebar-view">
-                <div class="git-header">
-                    <span>REVISION ARCHIVE</span>
-                    <button onclick="clearRevisionLog()" title="Purge local temporal logs" style="padding: 2px 5px;">PURGE</button>
-                </div>
-
-                <div id="revisionList" class="git-list">
-                </div>
             </div>
         </div>
 
@@ -662,21 +654,6 @@
                     </div>
                 </div>
             </div>
-
-            <div id="tabBar"></div>
-
-            <div class="toolbar" style="margin: 0; border-bottom: 1px solid #1a1a1a; background: #050505; padding: 5px;">
-                <button onclick="editor.undo()" title="Undo (Ctrl+Z)">↶ UNDO</button>
-                <button onclick="editor.redo()" title="Redo (Ctrl+Y)">↷ REDO</button>
-                <span style="width: 10px;"></span>
-                <button onclick="editor.execCommand('find')" title="Find / Replace (Ctrl+F)">🔍 FIND</button>
-                <button onclick="editor.toggleCommentLines()" title="Toggle Line Comment (Ctrl+/)">// COMMENT</button>
-                <button onclick="triggerManualFormat()" title="Format Document">▤ FORMAT</button>
-                <span style="width: 10px;"></span>
-                <button onclick="toggleSplitView()" id="splitBtn" title="Toggle Dual-Buffer" class="active">◫ SPLIT</button>
-                <button onclick="toggleTerminal()" id="termBtn" title="Toggle Terminal" class="active">🖵 TERM</button>
-            </div>
-            <div id="codeEditor"></div>
         </div>
 
         <div class="output-container">
@@ -785,8 +762,9 @@
         <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
 
         <script>
             // --- GLOBAL CORE STATE ---
@@ -798,7 +776,7 @@
             let isPreviewActive = false;
             let previewTimeout;
             let previewBgState = 0;
-            let autoFormatOnSave = true;
+            let autoFormatOnSave = false;
 
             const getSyntaxMode = (fileName) => {
                 const ext = fileName.split('.').pop().toLowerCase();
@@ -1251,7 +1229,9 @@
                 saveWorkspaceState();
             }
 
+            // Update your existing saveFile() function
             async function saveFile() {
+                if (!currentOpenPath) return;
 
                 // The Pre-Save Formatting Trigger
                 if (autoFormatOnSave) {
@@ -1263,15 +1243,22 @@
                     }
                 }
 
-                if (!currentOpenPath) return;
-                await fetch('/api/write', {
-                    method: 'POST', headers: {
-                        'Content-Type': 'application/json'
-                    }, body: JSON.stringify({
+                try {
+                    const res = await fetch('/api/write', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
                             path: currentOpenPath, content: editor.getValue()
                         })
-                });
-                term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
+                    });
+
+                    if (!res.ok) throw new Error("Server write failed");
+                    term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Save failed: ${e.message}\x1b[0m\r\n`);
+                }
             }
 
             function switchSidebar(viewName) {
@@ -1296,66 +1283,6 @@
                 if (viewName === 'git') {
                     if (typeof refreshGitStatus === 'function') refreshGitStatus();
                 }
-            }
-
-            // --- IDE ACTION CONTROLS ---
-
-            // 1. Manual Formatting Trigger
-            async function triggerManualFormat() {
-                const beautify = ace.require("ace/ext/beautify");
-                if (beautify) {
-                    beautify.beautify(editor.session);
-                    term.write('\r\n\x1b[32m[SYSTEM] Active document formatted.\x1b[0m\r\n');
-                } else {
-                    term.write('\r\n\x1b[31m[ERROR] Formatter engine not loaded.\x1b[0m\r\n');
-                }
-            }
-
-            // 2. Spatial Layout: Split View Toggle
-            let splitViewActive = true;
-            function toggleSplitView() {
-                const body = document.body;
-                const btn = document.getElementById('splitBtn');
-                splitViewActive = !splitViewActive;
-
-                if (splitViewActive) {
-                    // Restore from localStorage or default
-                    const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-                    body.style.gridTemplateColumns = savedLayout.cols;
-                    btn.classList.add('active');
-                    term.write('\r\n\x1b[90m[SYSTEM] Dual-buffer active.\x1b[0m\r\n');
-                } else {
-                    // Collapse right panel (Output Container)
-                    const currentCols = body.style.gridTemplateColumns.split(' ');
-                    body.style.gridTemplateColumns = `${currentCols[0]} 1fr 0px`;
-                    btn.classList.remove('active');
-                    term.write('\r\n\x1b[90m[SYSTEM] Single editor mode active.\x1b[0m\r\n');
-                }
-
-                setTimeout(() => {
-                    editor.resize(); outputEditor.resize(); fitAddon.fit();
-                }, 150);
-            }
-
-            // 3. Spatial Layout: Terminal Toggle
-            let terminalActive = true;
-            function toggleTerminal() {
-                const body = document.body;
-                const btn = document.getElementById('termBtn');
-                terminalActive = !terminalActive;
-
-                if (terminalActive) {
-                    const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-                    body.style.gridTemplateRows = savedLayout.rows;
-                    btn.classList.add('active');
-                } else {
-                    body.style.gridTemplateRows = "1fr 0px";
-                    btn.classList.remove('active');
-                }
-
-                setTimeout(() => {
-                    editor.resize(); outputEditor.resize(); fitAddon.fit();
-                }, 150);
             }
 
             async function refreshGitStatus() {
@@ -1391,487 +1318,15 @@
 
             async function gitAction(action, file = '') {
                 await fetch('/api/git/action', {
-                    method: 'POST', headers: {
+                    method: 'POST',
+                    headers: {
                         'Content-Type': 'application/json'
-                    }, body: JSON.stringify({
-                            action, file, dir: currentDirectory
-                        })
+                    },
+                    body: JSON.stringify({
+                        action, file, dir: currentDirectory
+                    })
                 });
                 refreshGitStatus();
-            }
-
-            async function createBranch() {
-                const branchName = prompt("ENTER NEW FEATURE BRANCH NAME:");
-                if (!branchName) return;
-
-                try {
-                    await gitAction('checkout', {
-                        branch: branchName, create: true
-                    });
-                    term.write(`\r\n\x1b[32m[GIT] SWITCHED TO NEW SECTOR: ${branchName}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[GIT ERR] BRANCH ALLOCATION FAILED.\x1b[0m\r\n`);
-                }
-            }
-
-            async function mergeBranch() {
-                const target = prompt("MERGE WHICH BRANCH INTO CURRENT?");
-                if (!target) return;
-
-                term.write(`\r\n\x1b[33m[SYSTEM] INITIATING CONFLICT DETECTION...\x1b[0m\r\n`);
-                try {
-                    const res = await fetch('/api/git/action', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'merge', target, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-
-                    if (data.conflicts) {
-                        term.write(`\r\n\x1b[31m[CONFLICT] AUTOMATIC RESOLUTION FAILED. MANUAL INTERVENTION REQUIRED.\x1b[0m\r\n`);
-                    } else {
-                        term.write(`\r\n\x1b[32m[SUCCESS] SECTOR MERGED SUCCESSFULLY.\x1b[0m\r\n`);
-                    }
-                    refreshGitStatus();
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] MERGE HANDSHAKE TIMED OUT.\x1b[0m\r\n`);
-                }
-            }
-
-            async function askAI() {
-                const input = document.getElementById('aiInput');
-                const directive = input.value.trim();
-                if (!directive) return;
-
-                const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
-                input.value = 'PROCESSING...';
-
-                try {
-                    console.log("PROMPT SENT TO AI:", `Context: ${contextFiles}\nDirective: ${directive}\nBuffer:\n${editor.getValue()}`);
-                    const res = await fetch('http://localhost:3001/api/ai', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            history: [{
-                                role: "user",
-                                content: `INSTRUCTIONS: ${directive}\n\nFILE CONTEXT LIST: ${contextFiles.join(', ')}\n\nCURRENT BUFFER CONTENT:\n${editor.getValue()}`
-                            }]
-                        })
-                    });
-
-                    if (!res.ok) {
-                        const errBody = await res.text();
-                        throw new Error(`Server ${res.status}: ${errBody}`);
-                    }
-
-                    const data = await res.json();
-
-                    if (data.choices && data.choices[0] && data.choices[0].message) {
-                        let rawContent = data.choices[0].message.content;
-
-                        const cleanedCode = rawContent
-                        .replace(/^``````$/i, '')
-                        .trim();
-
-                        outputEditor.setValue(cleanedCode, -1);
-                        term.write(`\r\n\x1b[32m[SUCCESS] AI logic loaded to output buffer.\x1b[0m\r\n`);
-                    } else {
-                        throw new Error("Malformed API response structure.");
-                    }
-
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] AI Handshake Failed: ${e.message}\x1b[0m\r\n`);
-                    console.error("Full AI Error:", e);
-                } finally {
-                    input.value = '';
-                }
-            }
-
-            async function runShadowTest() {
-                if (!currentOpenPath) return;
-                const content = outputEditor.getValue();
-                const ext = currentOpenPath.split('.').pop().toLowerCase();
-                const ind = document.getElementById('shadowStatus');
-                const statusText = document.getElementById('coreStatus');
-
-                statusText.innerText = `LINTING ${ext.toUpperCase()}...`;
-                ind.style.backgroundColor = '#f1c40f';
-
-                if (ext === 'html' || ext === 'js') {
-                    const isValid = validateWebCode(content, ext);
-                    if (!isValid.success) {
-                        statusText.innerText = isValid.error;
-                        ind.style.backgroundColor = '#f44336';
-                        return;
-                    }
-                }
-
-                try {
-                    const res = await fetch('/api/shadow-test', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path: currentOpenPath, content: content
-                        })
-                    });
-                    const result = await res.json();
-
-                    if (result.error) {
-                        statusText.innerText = "LINT ERROR";
-                        ind.style.backgroundColor = '#f44336';
-                    } else {
-                        statusText.innerText = "LINT PASSED";
-                        ind.style.backgroundColor = '#2ecc71';
-                    }
-                } catch (e) {
-                    statusText.innerText = "LINT TIMEOUT";
-                    ind.style.backgroundColor = '#f44336';
-                }
-            }
-
-            function validateWebCode(content, type) {
-                if (type === 'html') {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(content, "text/html");
-                    const errors = doc.querySelectorAll("parsererror");
-                    return errors.length > 0 ?
-                    {
-                        success: false,
-                        error: "Malformed HTML Structure"
-                    }:
-                    {
-                        success: true
-                    };
-                }
-
-                if (type === 'js') {
-                    try {
-                        new Function(content);
-                        return {
-                            success: true
-                        };
-                    } catch (e) {
-                        return {
-                            success: false,
-                            error: `JS Syntax: ${e.message}`
-                        };
-                    }
-                }
-                return {
-                    success: true
-                };
-            }
-
-            function applyDiffMerge() {
-                if (outputEditor.getValue().length < editor.getValue().length * 0.7) {
-                    if (!confirm("AI output is significantly shorter. Potential gutting detected. Proceed?")) return;
-                }
-                editor.setValue(outputEditor.getValue(), -1);
-                term.write(`\r\n\x1b[34m[SYSTEM] Merge applied.\x1b[0m\r\n`);
-            }
-
-            function toggleWrap() {
-                const wrapping = editor.getOption("wrap") === "off";
-                [editor,
-                    outputEditor].forEach(ed => ed.setOption("wrap", wrapping ? "free": "off"));
-                document.getElementById('wrapToggle').classList.toggle('active', wrapping);
-                Object.values(openTabs).forEach(tab => tab.session.setUseWrapMode(wrapping));
-            }
-
-            function applySettings(config) {
-                const t = themeMap[config.theme] || themeMap.chaos;
-
-                const root = document.documentElement;
-                if (t.ui) {
-                    root.style.setProperty('--ui-bg-base', t.ui.base);
-                    root.style.setProperty('--ui-bg-panel', t.ui.panel);
-                    root.style.setProperty('--ui-bg-surface', t.ui.surface);
-                    root.style.setProperty('--ui-bg-hover', t.ui.hover);
-                    root.style.setProperty('--ui-border-dark', t.ui.borderDark);
-                    root.style.setProperty('--ui-border-light', t.ui.borderLight);
-                    root.style.setProperty('--ui-text-dim', t.ui.textDim);
-                    root.style.setProperty('--ui-text-muted', t.ui.textMuted);
-                    root.style.setProperty('--ui-text-main', t.ui.textMain);
-                    root.style.setProperty('--ui-text-bright', t.ui.textBright);
-                    root.style.setProperty('--ui-accent', t.ui.accent);
-                }
-
-                [editor,
-                    outputEditor].forEach(ed => {
-                        ed.setTheme(t.ace);
-                        ed.setFontSize(parseInt(config.edFont) || 14);
-                    });
-                term.options.theme = Object.assign({}, t.term);
-                term.options.fontSize = parseInt(config.tmFont) || 13;
-                fitAddon.fit();
-
-                term.write(`\r\n\x1b[90m[SYSTEM] Forge Settings Applied.\x1b[0m\r\n`);
-            }
-
-            function loadSettings() {
-                const defaults = {
-                    theme: 'chaos',
-                    edFont: 14,
-                    tmFont: 13,
-                    pat: '',
-                    repo: '',
-                    gitName: '',
-                    gitEmail: ''
-                };
-
-                const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
-                applySettings(saved);
-
-                document.getElementById('set-theme').value = saved.theme;
-                document.getElementById('set-ed-font').value = saved.edFont;
-                document.getElementById('set-tm-font').value = saved.tmFont;
-                document.getElementById('set-pat').value = saved.pat || '';
-                document.getElementById('set-repo').value = saved.repo || '';
-                document.getElementById('set-git-name').value = saved.gitName || '';
-                document.getElementById('set-git-email').value = saved.gitEmail || '';
-            }
-
-            function saveSettings() {
-                const config = {
-                    theme: document.getElementById('set-theme').value,
-                    edFont: document.getElementById('set-ed-font').value,
-                    tmFont: document.getElementById('set-tm-font').value,
-                    pat: document.getElementById('set-pat').value,
-                    repo: document.getElementById('set-repo').value,
-                    gitName: document.getElementById('set-git-name').value,
-                    gitEmail: document.getElementById('set-git-email').value
-                };
-
-                localStorage.setItem('crucible-settings', JSON.stringify(config));
-                applySettings(config);
-                closeSettings();
-                term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
-
-                // --- PUSH ALL GIT CONFIGS TO BACKEND SILENTLY ---
-
-                // 1. Push Name & Email
-                if (config.gitName || config.gitEmail) {
-                    fetch('/api/git/config', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            name: config.gitName, email: config.gitEmail, dir: currentDirectory
-                        })
-                    }).catch(e => console.error(e));
-                }
-
-                // 2. Push Remote URL
-                if (config.repo) {
-                    fetch('/api/git/remote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            url: config.repo, dir: currentDirectory
-                        })
-                    }).then(() => {
-                        term.write(`\r\n\x1b[32m[SYSTEM] Remote origin locked.\x1b[0m\r\n`);
-                    }).catch(e => console.error(e));
-                }
-
-                // 3. Push Authentication Token (The missing piece)
-                if (config.pat) {
-                    fetch('/api/git/auth', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            token: config.pat, dir: currentDirectory
-                        })
-                    }).then(() => {
-                        term.write(`\r\n\x1b[32m[SYSTEM] Git PAT injected into sector.\x1b[0m\r\n`);
-                    }).catch(e => console.error(e));
-                }
-            }
-
-            function openSettings() {
-                document.getElementById('settingsModal').style.display = 'flex';
-            }
-            function closeSettings() {
-                document.getElementById('settingsModal').style.display = 'none';
-            }
-
-            function saveWorkspaceState() {
-                setTimeout(() => {
-                    const state = {
-                        dir: currentDirectory, tabs: Object.keys(openTabs), active: currentOpenPath
-                    };
-                    localStorage.setItem('crucible-workspace', JSON.stringify(state));
-                }, 50);
-            }
-
-            async function restoreWorkspaceState() {
-                const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
-                if (!saved || !saved.dir) {
-                    await loadTree('');
-                    return;
-                }
-                await loadTree(saved.dir);
-                if (saved.tabs) {
-                    for (const path of saved.tabs) {
-                        try {
-                            const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
-                            if (res.ok) {
-                                const content = await res.text();
-                                const fileName = path.split(/[\\/]/).pop();
-                                const session = ace.createEditSession(content, getSyntaxMode(fileName));
-                                openTabs[path] = {
-                                    session,
-                                    name: fileName
-                                };
-                                createTabUI(path, fileName);
-                            }
-                        } catch(e) {}
-                    }
-                }
-                if (saved.active && openTabs[saved.active]) switchTab(saved.active);
-            }
-
-            async function renameItem() {
-                if (!currentOpenPath) return alert("Select an active file in the editor first.");
-                const oldName = currentOpenPath.split(/[\\/]/).pop();
-                const newName = prompt("Rename to:", oldName);
-                if (!newName || newName === oldName) return;
-
-                const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join('/');
-                const newPath = parentDir ? `${parentDir}/${newName}`: newName;
-
-                try {
-                    const res = await fetch('/api/rename', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            oldPath: currentOpenPath, newPath: newPath
-                        })
-                    });
-                    const result = await res.json();
-                    if (result.error) throw new Error(result.error);
-
-                    const oldPath = currentOpenPath;
-                    delete openTabs[oldPath];
-                    document.getElementById(`tab-${btoa(oldPath).replace(/=/g, '')}`)?.remove();
-
-                    await loadTree(currentDirectory);
-                    await openFile(newPath);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Renamed: ${oldName} -> ${newName}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Rename failed: ${e.message}\x1b[0m\r\n`);
-                }
-            }
-
-            async function deleteItem() {
-                if (!currentOpenPath) return alert("Select an active file in the editor first.");
-                if (!confirm(`Are you sure you want to PERMANENTLY PURGE ${currentOpenPath}?`)) return;
-
-                try {
-                    const res = await fetch('/api/delete', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path: currentOpenPath
-                        })
-                    });
-                    const result = await res.json();
-                    if (result.error) throw new Error(result.error);
-
-                    closeTab(currentOpenPath);
-                    await loadTree(currentDirectory);
-                    term.write(`\r\n\x1b[33m[SYSTEM] Deleted: ${currentOpenPath}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Delete failed: ${e.message}\x1b[0m\r\n`);
-                }
-            }
-
-            async function createNewFile() {
-                const name = prompt("Enter new file name (with extension):");
-                if (!name) return;
-                const path = currentDirectory ? `${currentDirectory}/${name}`: name;
-
-                try {
-                    const res = await fetch('/api/write', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path, content: ''
-                        })
-                    });
-                    if (!res.ok) throw new Error("Server write failed");
-
-                    await loadTree(currentDirectory);
-                    await openFile(path);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Created File: ${name}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Create failed.\x1b[0m\r\n`);
-                }
-            }
-
-            async function createNewFolder() {
-                const name = prompt("Enter new directory name:");
-                if (!name) return;
-                const path = currentDirectory ? `${currentDirectory}/${name}`: name;
-
-                try {
-                    const res = await fetch('/api/mkdir', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path
-                        })
-                    });
-                    if (!res.ok) throw new Error("Server mkdir failed");
-
-                    await loadTree(currentDirectory);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Created Directory: ${name}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Mkdir failed.\x1b[0m\r\n`);
-                }
-            }
-
-            async function startIndexing() {
-                const statusEl = document.getElementById('coreStatus');
-                statusEl.innerText = "Targeting Vector Arrays...";
-                const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
-
-                try {
-                    const res = await fetch('/api/index', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            selectedFiles: contextFiles, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-                    term.write(`\r\n\x1b[34m[SYSTEM] Indexing sequence initiated for ${data.count || 'all'} targets.\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Indexer handshake failed.\x1b[0m\r\n`);
-                }
             }
 
             async function initGitRepo() {
@@ -1902,6 +1357,50 @@
                     refreshGitStatus();
                 } catch (e) {
                     term.write(`\r\n\x1b[31m[GIT ERROR] Commit failed: ${e.message}\x1b[0m\r\n`);
+                }
+            }
+
+            async function authenticateGit() {
+                const token = prompt("Enter GitHub Personal Access Token (PAT):");
+                if (!token) return;
+
+                try {
+                    const res = await fetch('/api/git/auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            token, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Git PAT injected into sector.\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Auth injection failed.\x1b[0m\r\n`);
+                }
+            }
+
+            async function setGitRemote() {
+                const url = prompt("Enter Repository Remote URL:");
+                if (!url) return;
+
+                try {
+                    const res = await fetch('/api/git/remote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            url, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Remote origin locked: ${url}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Remote configuration failed.\x1b[0m\r\n`);
                 }
             }
 
@@ -1965,6 +1464,104 @@
                 if (e.data.type === 'preview-error') term.write(`\r\n\x1b[31m[ERR]\x1b[0m ${e.data.data}\r\n`);
             });
 
+            // ==========================================
+            // --- EASTER EGG ENGINE & INPUT LISTENER ---
+            // ==========================================
+            const delay = ms => new Promise(res => setTimeout(res, ms));
+
+            const easterEgg = {
+                activate: async () => {
+                    // Echo to terminal so we know the trigger actually worked
+                    term.write('\r\n\x1b[35m[SYSTEM] Override accepted. Routing to status bar...\x1b[0m\r\n');
+
+                    const statusText = document.getElementById('coreStatus');
+                    const statusIndicator = document.getElementById('shadowStatus');
+
+                    if (!statusText || !statusIndicator) {
+                        term.write('\r\n\x1b[31m[ERROR] Easter Egg failed: Could not find Status Bar UI elements.\x1b[0m\r\n');
+                        return;
+                    }
+
+                    const update = (msg, color) => {
+                        statusText.innerText = msg.toUpperCase();
+                        statusIndicator.style.backgroundColor = color;
+                    };
+
+                    update('Initializing Sequence...', '#569cd6');
+                    await delay(2000);
+                    update('Welcome to the Crucible Industrial Forge', '#2ecc71');
+                    await delay(2000);
+                    update('Adherence to physics is required', '#888888');
+                    await delay(2000);
+                    update('Use "forge hack" for unexpected results', '#569cd6');
+                    await delay(2000);
+                    update('Unauthorized access is strictly prohibited', '#f44336');
+                    await delay(2000);
+                    update('Enjoy your stay', '#2ecc71');
+
+                    await delay(3000);
+                    update('System Operational', '#444444');
+                }
+            };
+
+            // --- GLOBAL INPUTS & SHORTCUTS ---
+            const inputField = document.getElementById('aiInput');
+
+            // 1. OBLITERATE lingering ghost listeners
+            const cleanInput = inputField.cloneNode(true);
+            inputField.parentNode.replaceChild(cleanInput, inputField);
+
+            // 2. The ONE unified listener with History Memory
+            cleanInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const cmd = this.value.trim();
+                    if (!cmd) return;
+
+                    // --- COMMAND HISTORY LOGIC ---
+                    // Only add to history if it's different from the last command
+                    if (aiCmdHistory[aiCmdHistory.length - 1] !== cmd) {
+                        aiCmdHistory.push(cmd);
+                        if (aiCmdHistory.length > 50) aiCmdHistory.shift(); // Keep it lean
+                    }
+                    aiCmdIndex = -1; // Reset index for the next time you use arrows
+                    // ------------------------------
+
+                    // Gatekeeper: Check for Easter Egg
+                    if (cmd.toLowerCase() === 'forge hack') {
+                        this.value = '';
+                        easterEgg.activate();
+                        return;
+                    }
+
+                    // Standard AI Route
+                    askAI();
+
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (aiCmdHistory.length > 0) {
+                        // Move backward through time
+                        aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
+                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+
+                        // Move cursor to end of line
+                        setTimeout(() => this.setSelectionRange(this.value.length, this.value.length), 0);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (aiCmdIndex > 0) {
+                        // Move forward through time
+                        aiCmdIndex--;
+                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                    } else if (aiCmdIndex === 0) {
+                        // Back to present day (empty input)
+                        aiCmdIndex = -1;
+                        this.value = '';
+                    }
+                }
+            });
+            // ==========================================
+
             window.onload = async () => {
                 try {
                     if (typeof initResizers === 'function') initResizers();
@@ -1989,6 +1586,14 @@
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     askAI();
+
+                    // Check for the secret phrase
+                    if (this.value.trim().toLowerCase() === 'forge hack') {
+                        this.value = ''; // clear the box
+                        easterEgg.activate();
+                        return; // Stop here, don't send to AI
+                    }
+
                 } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     if (aiCmdHistory.length > 0) {
