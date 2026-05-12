@@ -5,15 +5,29 @@
     <title>Crucible IDE | Industrial Forge</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
     <style>
+:root {
+        --ui-bg-base: #000000;
+        --ui-bg-panel: #050505;
+        --ui-bg-surface: #0a0a0a;
+        --ui-bg-hover: #111111;
+        --ui-border-dark: #1a1a1a;
+        --ui-border-light: #222222;
+        --ui-text-dim: #444444;
+        --ui-text-muted: #666666;
+        --ui-text-main: #888888;
+        --ui-text-bright: #cccccc;
+        --ui-accent: #569cd6;
+    }
+
         body {
             margin: 0;
-            background: #000;
-            color: #666;
+            background: var(--ui-bg-base);
+            color: var(--ui-text-muted);
             font-family: 'Segoe UI', sans-serif;
             display: grid;
             grid-template-areas:
-                'sidebar editor output'
-                'sidebar terminal terminal';
+            'sidebar editor output'
+            'sidebar terminal terminal';
             grid-template-columns: 280px 1fr 1fr;
             grid-template-rows: 1fr 350px;
             height: 100vh;
@@ -21,7 +35,6 @@
             transition: grid-template-columns 0.1s ease-out, grid-template-rows 0.1s ease-out;
         }
 
-        /* PHYSICS SHIELD: Disables transitions during drag */
         body.dragging {
             transition: none;
             user-select: none;
@@ -32,22 +45,33 @@
             pointer-events: none;
         }
 
-        /* RESIZER MECHANICAL OVERLAYS */
         .resizer-v {
             width: 4px;
             cursor: col-resize;
-            background: #111;
+            background: var(--ui-bg-hover);
             z-index: 100;
             transition: background 0.2s;
         }
-        .resizer-v:hover, .resizer-v.active { background: #333; }
-        #resizer-sb { grid-column: 1; grid-row: 1 / span 2; justify-self: end; margin-right: -2px; }
-        #resizer-ed { grid-column: 2; grid-row: 1; justify-self: end; margin-right: -2px; }
+        .resizer-v:hover, .resizer-v.active {
+            background: var(--ui-text-dim);
+        }
+        #resizer-sb {
+            grid-column: 1;
+            grid-row: 1 / span 2;
+            justify-self: end;
+            margin-right: -2px;
+        }
+        #resizer-ed {
+            grid-column: 2;
+            grid-row: 1;
+            justify-self: end;
+            margin-right: -2px;
+        }
 
         .resizer-h {
             height: 4px;
             cursor: row-resize;
-            background: #111;
+            background: var(--ui-bg-hover);
             z-index: 100;
             grid-column: 2 / span 2;
             grid-row: 1;
@@ -55,12 +79,14 @@
             margin-bottom: -2px;
             transition: background 0.2s;
         }
-        .resizer-h:hover, .resizer-h.active { background: #333; }
+        .resizer-h:hover, .resizer-h.active {
+            background: var(--ui-text-dim);
+        }
 
         .sidebar {
             grid-area: sidebar;
-            background: #0a0a0a;
-            border-right: 1px solid #1a1a1a;
+            background: var(--ui-bg-surface);
+            border-right: 1px solid var(--ui-border-dark);
             padding: 15px;
             display: flex;
             flex-direction: column;
@@ -70,7 +96,7 @@
         .sidebar h3 {
             font-size: 10px;
             letter-spacing: 2px;
-            color: #333;
+            color: var(--ui-text-dim);
             margin: 0 0 15px 0;
             text-transform: uppercase;
         }
@@ -86,16 +112,72 @@
             font-size: 10px;
         }
 
-        #pathUI { background: #050505; border: 1px solid #111; margin-bottom: 10px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
-        #breadcrumb { display: flex; gap: 5px; font-size: 10px; color: #444; flex-wrap: wrap; text-transform: uppercase; cursor: pointer; line-height: 1.4; }
-        #breadcrumb span:hover { color: #888; }
-        #manualPath { background: #000; border: 1px solid #1a1a1a; color: #666; font-size: 11px; padding: 4px; outline: none; width: 100%; box-sizing: border-box; }
+        #pathUI {
+            background: var(--ui-bg-panel);
+            border: 1px solid var(--ui-bg-hover);
+            margin-bottom: 10px;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        #breadcrumb {
+            display: flex;
+            gap: 5px;
+            font-size: 10px;
+            color: var(--ui-text-dim);
+            flex-wrap: wrap;
+            text-transform: uppercase;
+            cursor: pointer;
+            line-height: 1.4;
+        }
+        #breadcrumb span:hover {
+            color: var(--ui-text-main);
+        }
+        #manualPath {
+            background: var(--ui-bg-base);
+            border: 1px solid var(--ui-border-dark);
+            color: var(--ui-text-muted);
+            font-size: 11px;
+            padding: 4px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
-        #searchContainer { background: #080808; border: 1px solid #1a1a1a; margin-bottom: 10px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
-        #searchResults { max-height: 200px; overflow-y: auto; font-size: 11px; border-top: 1px solid #111; display: none; }
-        .search-item { padding: 4px; cursor: pointer; border-bottom: 1px solid #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .search-item:hover { background: #111; color: #ccc; }
-        .search-meta { font-size: 9px; color: #444; margin-right: 5px; }
+        #searchContainer {
+            background: var(--ui-bg-panel);
+            border: 1px solid var(--ui-border-dark);
+            margin-bottom: 10px;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        #searchResults {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 11px;
+            border-top: 1px solid var(--ui-bg-hover);
+            display: none;
+        }
+        .search-item {
+            padding: 4px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--ui-bg-hover);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .search-item:hover {
+            background: var(--ui-bg-hover);
+            color: var(--ui-text-bright);
+        }
+        .search-meta {
+            font-size: 9px;
+            color: var(--ui-text-dim);
+            margin-right: 5px;
+        }
 
         #fileList {
             list-style: none;
@@ -105,7 +187,7 @@
             flex-grow: 1;
             margin: 0;
             scrollbar-width: thin;
-            scrollbar-color: #1a1a1a #000;
+            scrollbar-color: var(--ui-border-dark) var(--ui-bg-base);
         }
 
         #fileList ul {
@@ -113,7 +195,7 @@
             padding-left: 14px;
             margin: 0;
             display: none;
-            border-left: 1px solid #111;
+            border-left: 1px solid var(--ui-bg-hover);
         }
 
         #fileList ul.expanded {
@@ -128,27 +210,27 @@
             gap: 6px;
             white-space: nowrap;
             user-select: none;
-            color: #888;
+            color: var(--ui-text-main);
             border-radius: 2px;
         }
 
         .fs-item:hover {
-            background: #111;
-            color: #ccc;
+            background: var(--ui-bg-hover);
+            color: var(--ui-text-bright);
         }
 
         .caret {
             width: 12px;
             text-align: center;
             font-size: 10px;
-            color: #444;
+            color: var(--ui-text-dim);
             transition: transform 0.1s;
             display: inline-block;
         }
 
         .caret.open {
             transform: rotate(90deg);
-            color: #888;
+            color: var(--ui-text-main);
         }
 
         .item-icon {
@@ -158,47 +240,49 @@
 
         .editor-container {
             grid-area: editor;
-            background: #000;
+            background: var(--ui-bg-base);
             display: flex;
             flex-direction: column;
-            border-left: 1px solid #1a1a1a;
+            border-left: 1px solid var(--ui-border-dark);
             min-width: 0;
         }
 
         .output-container {
             grid-area: output;
-            background: #050505;
+            background: var(--ui-bg-panel);
             display: flex;
             flex-direction: column;
-            border-left: 1px solid #1a1a1a;
+            border-left: 1px solid var(--ui-border-dark);
             min-width: 0;
         }
 
         .controls {
-            background: #0a0a0a;
+            background: var(--ui-bg-surface);
             padding: 10px;
             display: flex;
             gap: 10px;
-            border-bottom: 1px solid #1a1a1a;
+            border-bottom: 1px solid var(--ui-border-dark);
             align-items: center;
             flex-wrap: wrap;
         }
 
         #tabBar {
             display: flex;
-            background: #050505;
-            border-bottom: 1px solid #1a1a1a;
+            background: var(--ui-bg-panel);
+            border-bottom: 1px solid var(--ui-border-dark);
             overflow-x: auto;
             scrollbar-width: none;
         }
-        #tabBar::-webkit-scrollbar { display: none; }
+        #tabBar::-webkit-scrollbar {
+            display: none;
+        }
 
         .tab {
             padding: 8px 15px;
             font-size: 11px;
-            color: #444;
-            background: #0a0a0a;
-            border-right: 1px solid #1a1a1a;
+            color: var(--ui-text-dim);
+            background: var(--ui-bg-surface);
+            border-right: 1px solid var(--ui-border-dark);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -208,12 +292,12 @@
             letter-spacing: 0.5px;
         }
         .tab.active {
-            background: #000;
-            color: #aaa;
-            border-bottom: 1px solid #569cd6;
+            background: var(--ui-bg-base);
+            color: var(--ui-text-bright);
+            border-bottom: 1px solid var(--ui-accent);
         }
         .tab:hover {
-            color: #888;
+            color: var(--ui-text-main);
         }
         .tab-close {
             font-size: 10px;
@@ -232,16 +316,16 @@
 
         #statusBar {
             flex-grow: 1;
-            background: #000;
+            background: var(--ui-bg-base);
             height: 26px;
-            border: 1px solid #1a1a1a;
+            border: 1px solid var(--ui-border-dark);
             position: relative;
             overflow: hidden;
             display: flex;
             align-items: center;
             padding: 0 10px;
             font-size: 10px;
-            color: #444;
+            color: var(--ui-text-dim);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -251,11 +335,11 @@
             top: 0;
             left: 0;
             height: 100%;
-            background: #111;
+            background: var(--ui-bg-hover);
             width: 0%;
             transition: width 0.3s;
             z-index: 1;
-            border-right: 1px solid #222;
+            border-right: 1px solid var(--ui-border-light);
         }
 
         #statusText {
@@ -269,8 +353,8 @@
 
         .terminal-container {
             grid-area: terminal;
-            background: #000;
-            border-top: 1px solid #1a1a1a;
+            background: var(--ui-bg-base);
+            border-top: 1px solid var(--ui-border-dark);
             display: flex;
             flex-direction: column;
             padding: 5px;
@@ -285,24 +369,24 @@
         }
 
         input[type="text"] {
-            background: #000;
-            border: 1px solid #222;
-            color: #888;
+            background: var(--ui-bg-base);
+            border: 1px solid var(--ui-border-light);
+            color: var(--ui-text-main);
             padding: 6px;
             outline: none;
             font-size: 12px;
         }
 
         input[type="checkbox"] {
-            accent-color: #555;
+            accent-color: var(--ui-text-muted);
             cursor: pointer;
             margin: 0;
         }
 
         button, select {
-            background: #111;
-            color: #555;
-            border: 1px solid #222;
+            background: var(--ui-bg-hover);
+            color: var(--ui-text-muted);
+            border: 1px solid var(--ui-border-light);
             padding: 5px 12px;
             cursor: pointer;
             font-size: 11px;
@@ -311,38 +395,37 @@
         }
 
         button:hover, select:hover {
-            background: #222;
-            color: #eee;
-            border-color: #444;
+            background: var(--ui-border-light);
+            color: var(--ui-text-bright);
+            border-color: var(--ui-text-dim);
         }
 
         button.active {
-            background: #222;
-            color: #fff;
-            border-color: #444;
+            background: var(--ui-border-light);
+            color: var(--ui-text-bright);
+            border-color: var(--ui-text-dim);
         }
 
-        /* SIDEBAR TABS & VIEWS */
         .sidebar-tabs {
             display: flex;
-            border-bottom: 1px solid #1a1a1a;
-            margin: -10px -10px 10px -10px; /* Offset sidebar padding */
-            background: #000;
+            border-bottom: 1px solid var(--ui-border-dark);
+            margin: -10px -10px 10px -10px;
+            background: var(--ui-bg-base);
         }
         .sidebar-tabs button {
             flex: 1;
             background: transparent;
             border: none;
-            border-right: 1px solid #1a1a1a;
+            border-right: 1px solid var(--ui-border-dark);
             border-bottom: 2px solid transparent;
             padding: 8px 0;
-            color: #555;
+            color: var(--ui-text-muted);
             font-size: 10px;
         }
         .sidebar-tabs button.active {
-            color: #ccc;
-            border-bottom: 2px solid #569cd6;
-            background: #050505;
+            color: var(--ui-text-bright);
+            border-bottom: 2px solid var(--ui-accent);
+            background: var(--ui-bg-panel);
         }
         .sidebar-view {
             display: none;
@@ -354,13 +437,12 @@
             display: flex;
         }
 
-        /* GIT UI COMPONENTS */
         .git-controls input {
             width: 100%;
             box-sizing: border-box;
-            background: #000;
-            border: 1px solid #222;
-            color: #ccc;
+            background: var(--ui-bg-base);
+            border: 1px solid var(--ui-border-light);
+            color: var(--ui-text-bright);
             padding: 6px;
             font-family: inherit;
             font-size: 11px;
@@ -373,7 +455,7 @@
         }
         .git-header {
             font-size: 10px;
-            color: #444;
+            color: var(--ui-text-dim);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin: 10px 0 5px 0;
@@ -386,38 +468,116 @@
             align-items: center;
             padding: 4px;
             cursor: pointer;
-            border-bottom: 1px solid #111;
+            border-bottom: 1px solid var(--ui-bg-hover);
         }
         .git-item:hover {
-            background: #111;
+            background: var(--ui-bg-hover);
         }
         .git-status-badge {
             font-size: 9px;
             padding: 2px 4px;
             border-radius: 2px;
-            background: #222;
+            background: var(--ui-border-light);
         }
-        .status-M { color: #f1c40f; } /* Modified */
-        .status-A { color: #2ecc71; } /* Added */
-        .status-D { color: #e74c3c; } /* Deleted */
-        .status-U { color: #3498db; } /* Untracked */
+        .status-M {
+            color: #f1c40f;
+        }
+        .status-A {
+            color: #2ecc71;
+        }
+        .status-D {
+            color: #e74c3c;
+        }
+        .status-U {
+            color: #3498db;
+        }
 
-        /* SETTINGS MODAL */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: #0a0a0a; border: 1px solid #222; width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.8); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; }
-        .modal-header h3 { margin: 0; color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .close-btn { cursor: pointer; color: #666; font-size: 14px; background: none; border: none; padding: 0; }
-        .close-btn:hover { color: #f44336; }
-        .settings-group { display: flex; flex-direction: column; gap: 8px; }
-        .settings-group label { font-size: 10px; color: #666; text-transform: uppercase; }
-        .settings-group select, .settings-group input[type="number"], .settings-group input[type="text"] { background: #000; border: 1px solid #222; color: #ccc; padding: 6px; font-size: 11px; outline: none; font-family: inherit; }
-        .settings-group select:focus, .settings-group input:focus { border-color: #444; }
-        .settings-row { display: flex; align-items: center; justify-content: space-between; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #1a1a1a; padding-top: 15px; margin-top: 5px; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--ui-bg-surface);
+            border: 1px solid var(--ui-border-light);
+            width: 400px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--ui-border-dark);
+            padding-bottom: 10px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            color: var(--ui-text-bright);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .close-btn {
+            cursor: pointer;
+            color: var(--ui-text-muted);
+            font-size: 14px;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+        .close-btn:hover {
+            color: #f44336;
+        }
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .settings-group label {
+            font-size: 10px;
+            color: var(--ui-text-muted);
+            text-transform: uppercase;
+        }
+        .settings-group select, .settings-group input[type="number"], .settings-group input[type="text"] {
+            background: var(--ui-bg-base);
+            border: 1px solid var(--ui-border-light);
+            color: var(--ui-text-bright);
+            padding: 6px;
+            font-size: 11px;
+            outline: none;
+            font-family: inherit;
+        }
+        .settings-group select:focus, .settings-group input:focus {
+            border-color: var(--ui-text-dim);
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid var(--ui-border-dark);
+            padding-top: 15px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
+    <!-- === ALL ORIGINAL HTML (unchanged) === -->
     <div class="sidebar" id="mainSidebar">
         <div class="sidebar-tabs">
             <button id="tab-explorer" class="active" onclick="switchSidebar('explorer')">EXPLORER</button>
@@ -427,1123 +587,1493 @@
         <div id="view-explorer" class="sidebar-view active">
             <div class="toolbar">
                 <button onclick="goBack()" title="Back"> < </button>
-                <button onclick="goForward()" title="Forward"> > </button>
-                <button onclick="goUp()" title="Parent Directory"> ^ </button>
-                <button onclick="loadTree(currentDirectory)" title="Refresh Tree">⟳</button>
-            </div>
-
-            <div id="pathUI">
-                <div id="breadcrumb"></div>
-                <input type="text" id="manualPath" placeholder="Navigate to..." onkeydown="if(event.key==='Enter') loadTree(this.value)">
-            </div>
-
-            <div class="toolbar">
-                <button onclick="renameItem()" title="Rename Selection">REN</button>
-                <button onclick="deleteItem()" title="Delete Selection">DEL</button>
-                <button onclick="createNewFile()" title="New File">✚ FILE</button>
-                <button onclick="createNewFolder()" title="New Folder">✚ DIR</button>
-            </div>
-
-            <div id="searchContainer">
-                <div style="display: flex; gap: 4px;">
-                    <input type="text" id="globalSearchInput" placeholder="GLOBAL GREP..." style="flex-grow: 1;" onkeydown="if(event.key==='Enter') runGlobalSearch()">
-                    <button onclick="runGlobalSearch()">SCAN</button>
+                    <button onclick="goForward()" title="Forward"> > </button>
+                    <button onclick="goUp()" title="Parent Directory"> ^ </button>
+                    <button onclick="loadTree(currentDirectory)" title="Refresh Tree">⟳</button>
                 </div>
-                <div id="searchResults"></div>
-            </div>
 
-            <div id="fileList"></div>
-        </div>
-
-        <div id="view-git" class="sidebar-view">
-            <div class="git-controls">
-                <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
-                <input type="text" id="commitMessage" placeholder="Commit message...">
-                <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
-                <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
-                <button onclick="setGitRemote()" style="width: 100%; margin-top: 5px; color: #9b59b6;">SET REMOTE</button>
-            </div>
-
-            <div class="toolbar" style="margin-top: 10px;">
-                <button onclick="gitAction('pull')" title="Pull from Remote">PULL ↓</button>
-                <button onclick="gitAction('push')" title="Push to Remote">PUSH ↑</button>
-                <button onclick="refreshGitStatus()" title="Refresh Status">⟳</button>
-            </div>
-
-            <div id="gitStatusList" class="git-list">
+                <div id="pathUI">
+                    <div id="breadcrumb"></div>
+                    <input type="text" id="manualPath" placeholder="Navigate to..." onkeydown="if(event.key==='Enter') loadTree(this.value)">
                 </div>
-        </div>
-    </div>
 
-    <div class="resizer-v" id="resizer-sb"></div>
-    <div class="resizer-v" id="resizer-ed"></div>
-    <div class="resizer-h" id="resizer-tm"></div>
-
-    <div class="editor-container">
-        <div class="controls">
-            <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
-
-            <button onclick="saveFile()">Save</button>
-            <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
-
-            <div id="statusBar">
-                <div id="progressFill"></div>
-                <div id="statusText">
-                    <span id="coreStatus">System Operational</span>
-                    <span id="corePercent">0%</span>
+                <div class="toolbar">
+                    <button onclick="renameItem()" title="Rename Selection">REN</button>
+                    <button onclick="deleteItem()" title="Delete Selection">DEL</button>
+                    <button onclick="createNewFile()" title="New File">✚ FILE</button>
+                    <button onclick="createNewFolder()" title="New Folder">✚ DIR</button>
                 </div>
-            </div>
-        </div>
-        <div id="tabBar"></div>
-        <div id="codeEditor"></div>
-    </div>
-    <div id="shadowStatus" title="Shadow Forge Integrity"></div>
-    <div class="output-container">
-        <div class="controls">
 
-            <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
-
-            <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
-            <button onclick="askAI()" id="execBtn">Execute</button>
-
-            <div id="viewportControls" style="display: none; gap: 5px;">
-                <button onclick="setViewport('100%')">Desktop</button>
-                <button onclick="setViewport('768px')">Tablet</button>
-                <button onclick="setViewport('375px')">Mobile</button>
-                <button onclick="togglePreviewBackground()" style="color: #9b59b6;">BG Toggle</button>
-            </div>
-
-            <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
-            <button onclick="applyDiffMerge()" id="mergeBtn" style="color: #2ecc71;">Merge</button>
-
-            <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
-        </div>
-
-        <div id="outputEditor"></div>
-        <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
-    </div>
-
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal-content" style="width: 500px;">
-            <div class="modal-header">
-                <h3>System Preferences</h3>
-                <button class="close-btn" onclick="closeSettings()">✕</button>
-            </div>
-
-            <div class="settings-row">
-                <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                    <label>Editor Theme</label>
-                    <select id="set-theme">
-                        <option value="chaos">Chaos</option>
-                        <option value="industrial">Industrial</option>
-                        <option value="twilight">Twilight</option>
-                        <option value="tomorrow">Tomorrow Night</option>
-                    </select>
-                </div>
-                <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 15px; flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" id="set-autosave">
-                        <label style="margin: 0;">Auto-Backup</label>
+                <div id="searchContainer">
+                    <div style="display: flex; gap: 4px;">
+                        <input type="text" id="globalSearchInput" placeholder="GLOBAL GREP..." style="flex-grow: 1;" onkeydown="if(event.key==='Enter') runGlobalSearch()">
+                        <button onclick="runGlobalSearch()">SCAN</button>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        <label style="margin: 0;">Depth:</label>
-                        <input type="number" id="set-autosave-max" value="5" min="1" max="20" style="width: 45px; padding: 2px 4px;">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        <label style="margin: 0;">Secs:</label>
-                        <input type="number" id="set-autosave-interval" value="30" min="5" max="600" style="width: 45px; padding: 2px 4px;">
+                    <div id="searchResults"></div>
+                </div>
+
+                <div id="fileList"></div>
+            </div>
+
+            <div id="view-git" class="sidebar-view">
+                <div class="git-controls">
+                    <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
+                    <input type="text" id="commitMessage" placeholder="Commit message...">
+                    <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
+                    <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
+                    <button onclick="setGitRemote()" style="width: 100%; margin-top: 5px; color: #9b59b6;">SET REMOTE</button>
+                </div>
+
+                <div class="toolbar" style="margin-top: 10px;">
+                    <button onclick="gitAction('pull')" title="Pull from Remote">PULL ↓</button>
+                    <button onclick="gitAction('push')" title="Push to Remote">PUSH ↑</button>
+                    <button onclick="refreshGitStatus()" title="Refresh Status">⟳</button>
+                </div>
+
+                <div id="gitStatusList" class="git-list"></div>
+            </div>
+        </div>
+
+        <div class="resizer-v" id="resizer-sb"></div>
+        <div class="resizer-v" id="resizer-ed"></div>
+        <div class="resizer-h" id="resizer-tm"></div>
+
+        <div class="editor-container">
+            <div class="controls">
+                <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
+                <button onclick="saveFile()">Save</button>
+                <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
+                <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
+
+                <div id="statusBar">
+                    <div id="shadowStatus" style="width: 10px; height: 10px; border-radius: 50%; background: #444; margin-right: 10px;"></div>
+                    <div id="progressFill"></div>
+                    <div id="statusText">
+                        <span id="coreStatus">System Operational</span>
+                        <span id="corePercent">0%</span>
                     </div>
                 </div>
             </div>
+            <div id="tabBar"></div>
+            <div id="codeEditor"></div>
+        </div>
 
-            <div class="settings-row">
-                <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                    <label>Editor Font Size</label>
-                    <input type="number" id="set-ed-font" value="14" min="8" max="24">
+        <div class="output-container">
+            <div class="controls">
+                <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
+                <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
+                <button onclick="askAI()" id="execBtn">Execute</button>
+
+                <div id="viewportControls" style="display: none; gap: 5px;">
+                    <button onclick="setViewport('100%')">Desktop</button>
+                    <button onclick="setViewport('768px')">Tablet</button>
+                    <button onclick="setViewport('375px')">Mobile</button>
+                    <button onclick="togglePreviewBackground()" style="color: #9b59b6;">BG Toggle</button>
                 </div>
-                <div class="settings-group" style="flex: 1;">
-                    <label>Terminal Font Size</label>
-                    <input type="number" id="set-tm-font" value="13" min="8" max="24">
-                </div>
+
+                <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
+                <button onclick="applyDiffMerge()" id="mergeBtn" style="color: #2ecc71;">Merge</button>
+                <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
             </div>
 
-            <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 10px 0; width: 100%;">
+            <div id="outputEditor"></div>
+            <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
+        </div>
 
-            <div class="settings-group">
-                <label>GitHub PAT (Authentication)</label>
-                <input type="password" id="set-pat" placeholder="ghp_...">
-            </div>
-
-            <div class="settings-group">
-                <label>Target Repository URL (Remote Origin)</label>
-                <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
-            </div>
-
-            <div class="settings-row">
-                <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                    <label>Git Author Name</label>
-                    <input type="text" id="set-git-name" placeholder="John Doe">
+        <div class="modal-overlay" id="settingsModal">
+            <div class="modal-content" style="width: 500px;">
+                <div class="modal-header">
+                    <h3>System Preferences</h3>
+                    <button class="close-btn" onclick="closeSettings()">✕</button>
                 </div>
-                <div class="settings-group" style="flex: 1;">
-                    <label>Git Author Email</label>
-                    <input type="text" id="set-git-email" placeholder="john@example.com">
-                </div>
-            </div>
 
-            <div class="modal-footer">
-                <button onclick="closeSettings()" style="background: transparent; border: 1px solid #222;">Cancel</button>
-                <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71;">Save Changes</button>
+                <div class="settings-row">
+                    <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                        <label>Editor Theme</label>
+                        <select id="set-theme">
+                            <option value="chaos">Chaos</option>
+                            <option value="industrial">Industrial</option>
+                            <option value="twilight">Twilight</option>
+                            <option value="tomorrow">Tomorrow Night</option>
+                        </select>
+                    </div>
+                    <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 15px; flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="set-autosave">
+                            <label style="margin: 0;">Auto-Backup</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label style="margin: 0;">Depth:</label>
+                            <input type="number" id="set-autosave-max" value="5" min="1" max="20" style="width: 45px; padding: 2px 4px;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label style="margin: 0;">Secs:</label>
+                            <input type="number" id="set-autosave-interval" value="30" min="5" max="600" style="width: 45px; padding: 2px 4px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                        <label>Editor Font Size</label>
+                        <input type="number" id="set-ed-font" value="14" min="8" max="24">
+                    </div>
+                    <div class="settings-group" style="flex: 1;">
+                        <label>Terminal Font Size</label>
+                        <input type="number" id="set-tm-font" value="13" min="8" max="24">
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 10px 0; width: 100%;">
+
+                <div class="settings-group">
+                    <label>GitHub PAT (Authentication)</label>
+                    <input type="password" id="set-pat" placeholder="ghp_...">
+                </div>
+
+                <div class="settings-group">
+                    <label>Target Repository URL (Remote Origin)</label>
+                    <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-group" style="flex: 1; margin-right: 10px;">
+                        <label>Git Author Name</label>
+                        <input type="text" id="set-git-name" placeholder="John Doe">
+                    </div>
+                    <div class="settings-group" style="flex: 1;">
+                        <label>Git Author Email</label>
+                        <input type="text" id="set-git-email" placeholder="john@example.com">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button onclick="closeSettings()" style="background: transparent; border: 1px solid #222;">Cancel</button>
+                    <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71;">Save Changes</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="terminal-container">
-        <div id="terminalBox"></div>
-    </div>
+        <div class="terminal-container">
+            <div id="terminalBox"></div>
+        </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-searchbox.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
 
-    <script>
-        let currentOpenPath = '', currentDirectory = '';
-        let openTabs = {};
-        let navHistory = [], navIndex = -1;
+        <script>
+            // --- GLOBAL CORE STATE ---
+            let currentOpenPath = '', currentDirectory = '';
+            let openTabs = {};
+            let navHistory = [], navIndex = -1;
+            let aiCmdHistory = [];
+            let aiCmdIndex = -1;
+            let isPreviewActive = false;
+            let previewTimeout;
+            let previewBgState = 0;
+            let autoFormatOnSave = false;
 
-        const getSyntaxMode = (fileName) => {
-            const ext = fileName.split('.').pop().toLowerCase();
-            const modeMap = {
-                'js': 'javascript',
-                'html': 'html',
-                'css': 'css',
-                'json': 'json',
-                'md': 'markdown',
-                'sh': 'sh'
-            };
-            return `ace/mode/${modeMap[ext] || 'text'}`; // Defaults to plain text if unknown
-        };
-
-        const themeMap = {
-            chaos: {
-                ace: "ace/theme/chaos",
-                term: { background: '#000000', foreground: '#888888', cursor: '#569cd6', selection: '#222222' }
-            },
-            industrial: {
-                ace: "ace/theme/mono_industrial",
-                term: { background: '#0a0a0a', foreground: '#777777', cursor: '#444444', selection: '#1a1a1a' }
-            },
-            twilight: {
-                ace: "ace/theme/twilight",
-                term: { background: '#141414', foreground: '#f8f8f8', cursor: '#8f9d6a', selection: '#323232' }
-            },
-            tomorrow: {
-                ace: "ace/theme/tomorrow_night_eighties",
-                term: { background: '#2d2d2d', foreground: '#cccccc', cursor: '#6699cc', selection: '#515151' }
-            }
-        };
-
-        const editor = ace.edit("codeEditor");
-        const outputEditor = ace.edit("outputEditor");
-
-        [editor, outputEditor].forEach(ed => {
-            ed.setTheme(themeMap.chaos.ace);
-            ed.setFontSize(14);
-            ed.setOption("fixedWidthGutter", true);
-            ed.setOption("wrap", "free");
-        });
-
-        outputEditor.setReadOnly(false);
-
-        const term = new Terminal({
-            theme: themeMap.chaos.term,
-            fontFamily: 'Consolas, "Courier New", monospace',
-            fontSize: 13,
-            cursorBlink: true,
-            allowProposedApi: true
-        });
-        const fitAddon = new FitAddon.FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(document.getElementById('terminalBox'));
-        fitAddon.fit();
-
-        const socket = new WebSocket(`ws://${window.location.host}`);
-
-        socket.onopen = () => {
-            term.write('\x1b[34m[CRUCIBLE BASH LINK ACTIVE]\x1b[0m\r\n');
-            sendResize();
-        };
-
-        socket.onmessage = async (ev) => {
-            let rawData = ev.data;
-            if (rawData instanceof Blob) rawData = await rawData.text();
-            try {
-                const msg = JSON.parse(rawData);
-                if (msg.type === 'progress') {
-                    const fill = document.getElementById('progressFill');
-                    const status = document.getElementById('coreStatus');
-                    const percent = document.getElementById('corePercent');
-                    fill.style.width = msg.data.percent + '%';
-                    status.innerText = `${msg.data.percent === 100 ? 'SUCCESS' : 'SYNCING'}: ${msg.data.file}`;
-                    percent.innerText = msg.data.percent + '%';
-                }
-            } catch (e) {
-                term.write(rawData);
-            }
-        };
-
-        term.onData(data => {
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: 'input', data: data }));
-            }
-        });
-
-        function sendResize() {
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-            }
-        }
-
-        window.onresize = () => {
-            fitAddon.fit();
-            sendResize();
-        };
-
-        // --- RECALIBRATED: Match the CSS grid array ---
-        function initResizers() {
-            const body = document.body;
-            const saved = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-            body.style.gridTemplateColumns = saved.cols;
-            body.style.gridTemplateRows = saved.rows;
-
-            const startDragging = (id, type) => {
-                const resizer = document.getElementById(id);
-                resizer.onmousedown = (e) => {
-                    body.classList.add('dragging');
-                    resizer.classList.add('active');
-
-                    document.onmousemove = (moveE) => {
-                        const cols = body.style.gridTemplateColumns.split(' ');
-                        const rows = body.style.gridTemplateRows.split(' ');
-
-                        if (type === 'sidebar') {
-                            cols[0] = Math.max(40, moveE.clientX) + 'px';
-                        } else if (type === 'editor') {
-                            const sidebarW = parseInt(cols[0]);
-                            cols[1] = Math.max(50, moveE.clientX - sidebarW) + 'px';
-                        } else if (type === 'terminal') {
-                            rows[1] = Math.max(50, window.innerHeight - moveE.clientY) + 'px';
-                        }
-
-                        body.style.gridTemplateColumns = cols.join(' ');
-                        body.style.gridTemplateRows = rows.join(' ');
-                        [editor, outputEditor].forEach(ed => ed.resize());
-                        fitAddon.fit();
-                    };
-
-                    document.onmouseup = () => {
-                        body.classList.remove('dragging');
-                        resizer.classList.remove('active');
-                        document.onmousemove = null;
-                        document.onmouseup = null;
-                        localStorage.setItem('crucible-layout', JSON.stringify({
-                            cols: body.style.gridTemplateColumns,
-                            rows: body.style.gridTemplateRows
-                        }));
-                    };
+            const getSyntaxMode = (fileName) => {
+                const ext = fileName.split('.').pop().toLowerCase();
+                const modeMap = {
+                    'js': 'javascript',
+                    'cs': 'csharp',
+                    'html': 'html',
+                    'css': 'css',
+                    'json': 'json',
+                    'md': 'markdown',
+                    'sh': 'sh'
                 };
+                return `ace/mode/${modeMap[ext] || 'text'}`;
             };
 
-            startDragging('resizer-sb', 'sidebar');
-            startDragging('resizer-ed', 'editor');
-            startDragging('resizer-tm', 'terminal');
-        }
-
-        async function runGlobalSearch() {
-            const query = document.getElementById('globalSearchInput').value;
-            const resultsBox = document.getElementById('searchResults');
-            if (!query) { resultsBox.style.display = 'none'; return; }
-            resultsBox.innerHTML = '<div class="search-item">Scanning Forge...</div>';
-            resultsBox.style.display = 'block';
-            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&dir=${encodeURIComponent(currentDirectory)}`);
-            const data = await res.json();
-            resultsBox.innerHTML = '';
-            if (data.length === 0) {
-                resultsBox.innerHTML = '<div class="search-item">No matches in current sector.</div>';
-            } else {
-                data.forEach(match => {
-                    const item = document.createElement('div');
-                    item.className = 'search-item';
-                    const fileName = match.path.split(/[\\/]/).pop();
-                    item.innerHTML = `<span class="search-meta">${fileName}:${match.line}</span> ${match.text}`;
-                    item.onclick = () => { openFile(match.path).then(() => { editor.gotoLine(match.line, 0, true); editor.focus(); }); };
-                    resultsBox.appendChild(item);
-                });
-            }
-        }
-
-        async function loadTree(dir = '', parentElement = null, skipHistory = false) {
-            const res = await fetch(`/api/files?dir=${encodeURIComponent(dir)}`);
-            const data = await res.json();
-            if (!parentElement) {
-                currentDirectory = data.currentDir;
-                document.getElementById('manualPath').value = currentDirectory;
-                updateBreadcrumbs(currentDirectory);
-                if (!skipHistory) {
-                    if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
-                    navHistory.push(currentDirectory);
-                    navIndex++;
-                }
-                saveWorkspaceState();
-                parentElement = document.getElementById('fileList');
-                parentElement.innerHTML = '';
-            }
-            const ul = document.createElement('ul');
-            ul.classList.add('expanded');
-            data.entries.forEach(e => {
-                const li = document.createElement('li');
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'fs-item';
-                if (e.isDirectory) {
-                    itemDiv.innerHTML = `<span class="caret">▶</span> <span class="item-icon">📁</span> ${e.name}`;
-                    itemDiv.onclick = (ev) => {
-                        ev.stopPropagation();
-                        const childUl = li.querySelector('ul');
-                        if (childUl) {
-                            childUl.classList.toggle('expanded');
-                            itemDiv.querySelector('.caret').classList.toggle('open');
-                        } else {
-                            itemDiv.querySelector('.caret').classList.add('open');
-                            loadTree(e.path, li, true);
-                        }
-                    };
-                    itemDiv.ondblclick = (ev) => { ev.stopPropagation(); loadTree(e.path); };
-                } else {
-                    itemDiv.innerHTML = `<span style="width:12px; display:inline-block;"></span><input type="checkbox" class="context-cb" value="${e.path}" onclick="event.stopPropagation()"> <span class="item-icon">📄</span> ${e.name}`;
-                    itemDiv.onclick = (ev) => { ev.stopPropagation(); openFile(e.path); };
-                }
-                li.appendChild(itemDiv);
-                ul.appendChild(li);
-            });
-            parentElement.appendChild(ul);
-        }
-
-        function updateBreadcrumbs(dir) {
-            const bc = document.getElementById('breadcrumb');
-            bc.innerHTML = '';
-            const parts = dir.split(/[\\/]/).filter(p => p);
-            let runningPath = dir.startsWith('/') ? '' : '';
-            const rootSpan = document.createElement('span');
-            rootSpan.innerText = 'ROOT / ';
-            rootSpan.onclick = () => loadTree('/');
-            bc.appendChild(rootSpan);
-            parts.forEach((p, i) => {
-                runningPath += '/' + p;
-                const s = document.createElement('span');
-                s.innerText = p + (i < parts.length - 1 ? ' / ' : '');
-                const target = runningPath;
-                s.onclick = () => loadTree(target);
-                bc.appendChild(s);
-            });
-        }
-
-        function goBack() { if (navIndex > 0) { navIndex--; loadTree(navHistory[navIndex], null, true); } }
-        function goForward() { if (navIndex < navHistory.length - 1) { navIndex++; loadTree(navHistory[navIndex], null, true); } }
-        function goUp() { const parent = currentDirectory.split(/[\\/]/).slice(0, -1).join('/') || '/'; loadTree(parent); }
-
-        async function renameItem() {
-            if (!currentOpenPath) return alert("Select active file.");
-            const oldName = currentOpenPath.split(/[\\/]/).pop();
-            const newName = prompt("Rename to:", oldName);
-            if (!newName || newName === oldName) return;
-            const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join('/');
-            const newPath = `${parentDir}/${newName}`;
-            await fetch('/api/rename', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oldPath: currentOpenPath, newPath: newPath }) });
-            delete openTabs[currentOpenPath];
-            const tabElement = document.getElementById(`tab-${btoa(currentOpenPath).replace(/=/g, '')}`);
-            if (tabElement) tabElement.remove();
-            loadTree(currentDirectory);
-            openFile(newPath);
-        }
-
-        async function deleteItem() {
-            if (!currentOpenPath) return alert("Select active file.");
-            if (!confirm(`Purge ${currentOpenPath}?`)) return;
-            await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentOpenPath }) });
-            closeTab(currentOpenPath);
-            loadTree(currentDirectory);
-        }
-
-        async function createNewFolder() {
-            const name = prompt("Directory Name:");
-            if (!name) return;
-            await fetch('/api/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: `${currentDirectory}/${name}` }) });
-            loadTree(currentDirectory);
-        }
-
-        async function openFile(path) {
-            const fileName = path.split(/[\\/]/).pop();
-            if (openTabs[path]) { switchTab(path); return; }
-
-            const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
-            const content = await res.text();
-
-            // --- DYNAMIC SYNTAX DETECTION ---
-            const syntaxMode = getSyntaxMode(fileName);
-            const session = ace.createEditSession(content, syntaxMode);
-            session.setUseWrapMode(editor.getOption("wrap") !== "off");
-
-            // --- JAVASCRIPT LINTER UPGRADE (Only fires for JS files) ---
-            if (syntaxMode === 'ace/mode/javascript') {
-                session.on("changeMode", function() {
-                    if (session.$worker) {
-                        session.$worker.send("changeOptions", { esversion: 11, asi: true });
-                    }
-                });
-            }
-
-            openTabs[path] = { session, name: fileName };
-            createTabUI(path, fileName);
-            switchTab(path);
-            term.write(`\r\n\x1b[90m[SYSTEM] Protocol Opened: ${fileName} [${syntaxMode.split('/').pop().toUpperCase()}]\x1b[0m\r\n`);
-        }
-
-        function createTabUI(path, name) {
-            const tabBar = document.getElementById('tabBar');
-            const tab = document.createElement('div');
-            tab.className = 'tab';
-            tab.id = `tab-${btoa(path).replace(/=/g, '')}`;
-            tab.innerHTML = `<span onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
-            tabBar.appendChild(tab);
-        }
-
-        function switchTab(path) {
-            currentOpenPath = path;
-            editor.setSession(openTabs[path].session);
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
-            if (activeTab) activeTab.classList.add('active');
-            editor.focus();
-
-            saveWorkspaceState();
-        }
-
-        function closeTab(path) {
-            const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
-            if (tabElement) tabElement.remove();
-            delete openTabs[path];
-            const remaining = Object.keys(openTabs);
-            if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
-            else { currentOpenPath = ''; editor.setValue('', -1); }
-
-            saveWorkspaceState();
-        }
-
-        async function createNewFile() {
-            const name = prompt("File Name (include extension, e.g., module.js):");
-            if (!name) return;
-
-            const newPath = `${currentDirectory}/${name}`;
-
-            // Push an empty string to the write endpoint to allocate the file
-            await fetch('/api/write', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: newPath, content: '' })
-            });
-
-            // Refresh the tree and immediately open the new file in the buffer
-            loadTree(currentDirectory);
-            openFile(newPath);
-        }
-
-        async function saveFile() {
-            if (!currentOpenPath) return;
-            await fetch('/api/write', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: currentOpenPath, content: editor.getValue() }) });
-            term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
-        }
-
-        async function startIndexing() {
-            document.getElementById('coreStatus').innerText = "Initiating Targeted Sync...";
-            const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
-            await fetch('/api/index', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selectedFiles: contextFiles }) });
-        }
-
-        function toggleWrap() {
-            const wrapping = editor.getOption("wrap") === "off";
-            [editor, outputEditor].forEach(ed => ed.setOption("wrap", wrapping ? "free" : "off"));
-            document.getElementById('wrapToggle').classList.toggle('active', wrapping);
-            Object.values(openTabs).forEach(tab => tab.session.setUseWrapMode(wrapping));
-        }
-
-        async function askAI() {
-            const input = document.getElementById('aiInput');
-            const directive = input.value.trim();
-            if (!directive) return;
-            
-            // Log to history and reset index
-            aiCmdHistory.push(directive);
-            aiCmdIndex = -1;
-            
-            const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
-            input.value = 'PROCESSING...';
-            try {
-                const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ history: [{ role: "user", content: `Context: ${contextFiles}\nDirective: ${directive}\nBuffer:\n${editor.getValue()}` }] }) });
-                const data = await res.json();
-                outputEditor.setValue(data.choices[0].message.content.trim().replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, ''), -1);
-            } catch (e) { term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`); }
-            input.value = '';
-        }
-
-        async function runShadowTest() {
-            if (!currentOpenPath) return;
-            const content = outputEditor.getValue();
-
-            // Optional: If you kept the #shadowStatus square, you can update its color here.
-            // If you stripped it during the rollback, just rely on the terminal output.
-            const ind = document.getElementById('shadowStatus');
-
-            if (result.error) {
-            // Syntax error caught in the shadow directory
-            ind.style.backgroundColor = '#e74c3c'; // Turns Red
-            } else {
-            // Code is perfectly valid
-            ind.style.backgroundColor = '#2ecc71'; // Turns Green
-            }
-
-            const res = await fetch('/api/shadow-test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: currentOpenPath, content: content })
-            });
-            const result = await res.json();
-
-            if (result.error) {
-                term.write(`\r\n\x1b[31m[SHADOW FAIL] ${result.error}\x1b[0m\r\n`);
-            } else {
-                term.write(`\r\n\x1b[32m[SHADOW PASS] Logic verified in isolation.\x1b[0m\r\n`);
-            }
-        }
-
-        function applyDiffMerge() {
-            const existing = editor.getValue().split('\n');
-            const incoming = outputEditor.getValue().split('\n');
-
-            // The Surgical Guard: Prevents the AI from gutting the file
-            if (incoming.length < existing.length * 0.7) {
-                if (!confirm("The AI output is significantly shorter. Potential gutting detected. Proceed?")) return;
-            }
-
-            editor.setValue(outputEditor.getValue(), -1);
-            term.write(`\r\n\x1b[34m[SYSTEM] Differential merge applied to buffer.\x1b[0m\r\n`);
-        }
-
-        // --- ENHANCED LIVE PREVIEW ENGINE ---
-        let isPreviewActive = false;
-        let previewTimeout;
-
-        function togglePreview() {
-            const preview = document.getElementById('previewFrame');
-            const outputEd = document.getElementById('outputEditor');
-            const btn = document.getElementById('previewBtn');
-
-            // UI Element Targeting
-            const vpControls = document.getElementById('viewportControls');
-            const verifyBtn = document.getElementById('verifyBtn');
-            const mergeBtn = document.getElementById('mergeBtn');
-            const aiInput = document.getElementById('aiInput');
-            const execBtn = document.getElementById('execBtn');
-            const wrapBtn = document.getElementById('wrapToggle');
-
-            isPreviewActive = !isPreviewActive;
-
-            if (isPreviewActive) {
-                outputEd.style.display = 'none';
-                preview.style.display = 'block';
-                btn.style.color = '#e74c3c';
-                btn.innerText = 'Close';
-
-                // Swap Controls
-                vpControls.style.display = 'flex';
-                verifyBtn.style.display = 'none';
-                mergeBtn.style.display = 'none';
-                aiInput.style.display = 'none';
-                execBtn.style.display = 'none';
-                wrapBtn.style.display = 'none';
-
-                setViewport('100%'); // Default to desktop
-                renderPreview();
-            } else {
-                preview.style.display = 'none';
-                outputEd.style.display = 'block';
-                btn.style.color = '#3498db';
-                btn.innerText = 'Preview';
-
-                // Restore Controls
-                vpControls.style.display = 'none';
-                verifyBtn.style.display = 'inline-block';
-                mergeBtn.style.display = 'inline-block';
-                aiInput.style.display = 'inline-block';
-                execBtn.style.display = 'inline-block';
-                wrapBtn.style.display = 'inline-block';
-            }
-        }
-
-        function setViewport(width) {
-            const preview = document.getElementById('previewFrame');
-            preview.style.width = width;
-            preview.style.margin = width === '100%' ? '0' : '0 auto';
-            preview.style.borderLeft = width === '100%' ? 'none' : '1px solid #333';
-            preview.style.borderRight = width === '100%' ? 'none' : '1px solid #333';
-        }
-
-        // --- PREVIEW ENHANCEMENTS (Undock Purged) ---
-        let previewBgState = 0;
-        function togglePreviewBackground() {
-            const preview = document.getElementById('previewFrame');
-            const states = [
-                '#ffffff',
-                '#0a0a0a',
-                'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23222\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23111\'/%3E%3C/svg%3E")'
-            ];
-            previewBgState = (previewBgState + 1) % states.length;
-            preview.style.background = states[previewBgState];
-        }
-
-        function renderPreview() {
-            if (!isPreviewActive) return;
-            const code = editor.getValue();
-
-            // The Interceptor: Strictly piped from the iframe to the parent IDE
-            const interceptor = `
-                <script>
-                    const originalLog = console.log;
-                    const originalError = console.error;
-                    console.log = function(...args) {
-                        window.parent.postMessage({ type: 'preview-log', data: args.join(' ') }, '*');
-                        originalLog.apply(console, args);
-                    };
-                    console.error = function(...args) {
-                        window.parent.postMessage({ type: 'preview-error', data: args.join(' ') }, '*');
-                        originalError.apply(console, args);
-                    };
-                    window.onerror = function(msg, url, line) {
-                        window.parent.postMessage({ type: 'preview-error', data: msg + ' (Line ' + line + ')' }, '*');
-                        return false;
-                    };
-                <\/script>
-            `;
-
-            document.getElementById('previewFrame').srcdoc = interceptor + code;
-        }
-
-        // --- SOURCE CONTROL ENGINE ---
-        function switchSidebar(viewName) {
-            document.querySelectorAll('.sidebar-view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.sidebar-tabs button').forEach(b => b.classList.remove('active'));
-            document.getElementById(`view-${viewName}`).classList.add('active');
-            document.getElementById(`tab-${viewName}`).classList.add('active');
-            if (viewName === 'git') refreshGitStatus();
-        }
-
-        async function setGitRemote() {
-            const remoteUrl = prompt("Enter GitHub Repository URL (HTTPS or SSH):");
-            if (!remoteUrl) return;
-
-            try {
-                const res = await fetch('/api/git/remote', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: remoteUrl, dir: currentDirectory })
-                });
-
-                const data = await res.json();
-                if (data.error) {
-                    term.write(`\r\n\x1b[31m[REMOTE ERROR] ${data.error}\x1b[0m\r\n`);
-                } else {
-                    term.write(`\r\n\x1b[32m[SYSTEM] Remote origin set to: ${remoteUrl}\x1b[0m\r\n`);
-                }
-            } catch (err) {
-                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
-            }
-        }
-
-        async function refreshGitStatus() {
-            const list = document.getElementById('gitStatusList');
-            list.innerHTML = '<div style="color: #555;">SCANNING REPOSITORY...</div>';
-            try {
-                const res = await fetch(`/api/git/status?dir=${encodeURIComponent(currentDirectory)}`);
-                const data = await res.json();
-                list.innerHTML = '';
-
-                if (data.staged.length > 0) {
-                    list.innerHTML += `<div class="git-header"><span>STAGED CHANGES</span></div>`;
-                    data.staged.forEach(item => list.appendChild(createGitItem(item, true)));
-                }
-                if (data.unstaged.length > 0) {
-                    list.innerHTML += `<div class="git-header"><span>CHANGES</span> <button onclick="gitAction('add-all')" style="padding: 2px 5px;">STAGE ALL</button></div>`;
-                    data.unstaged.forEach(item => list.appendChild(createGitItem(item, false)));
-                }
-                if (data.staged.length === 0 && data.unstaged.length === 0) {
-                    list.innerHTML = '<div style="color: #555; margin-top: 10px;">WORKING TREE CLEAN</div>';
-                }
-            } catch (err) { list.innerHTML = `<div style="color: #e74c3c;">GIT ERROR: ${err.message}</div>`; }
-        }
-
-        function createGitItem(item, isStaged) {
-            const div = document.createElement('div');
-            div.className = 'git-item';
-            const fileName = item.file.split(/[\\/]/).pop();
-            const actionBtn = isStaged ?
-                `<button onclick="gitAction('unstage', '${item.file}')" title="Unstage">-</button>` :
-                `<button onclick="gitAction('stage', '${item.file}')" title="Stage">+</button>`;
-            div.innerHTML = `
-                <span onclick="openFile('${item.file}')" style="flex-grow: 1;">${fileName}</span>
-                <span class="git-status-badge status-${item.status}">${item.status}</span>
-                ${actionBtn}
-            `;
-            return div;
-        }
-
-        async function gitAction(action, file = '') {
-            await fetch('/api/git/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, file, dir: currentDirectory }) });
-            refreshGitStatus();
-        }
-
-        async function commitChanges() {
-            const msgInput = document.getElementById('commitMessage');
-            const message = msgInput.value.trim();
-            if (!message) return alert('COMMIT MESSAGE REQUIRED.');
-            await fetch('/api/git/commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, dir: currentDirectory }) });
-            msgInput.value = '';
-            refreshGitStatus();
-            term.write(`\r\n\x1b[32m[SYSTEM] Git Commit Executed.\x1b[0m\r\n`);
-        }
-
-        async function authenticateGit() {
-            const token = prompt("Enter GitHub Personal Access Token (PAT):");
-            if (!token) return;
-
-            try {
-                const res = await fetch('/api/git/auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token, dir: currentDirectory })
-                });
-
-                const data = await res.json();
-                if (data.error) {
-                    term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
-                } else {
-                    term.write(`\r\n\x1b[32m[SYSTEM] Git Authentication Token Injected.\x1b[0m\r\n`);
-                }
-            } catch (err) {
-                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
-            }
-        }
-
-        async function initGitRepo() {
-            try {
-                const res = await fetch('/api/git/action', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'init', dir: currentDirectory })
-                });
-                const data = await res.json();
-
-                if (data.error) {
-                    term.write(`\r\n\x1b[31m[GIT ERROR] ${data.error}\x1b[0m\r\n`);
-                } else {
-                    term.write(`\r\n\x1b[32m[SYSTEM] Empty Git Repository Initialized in ${currentDirectory}\x1b[0m\r\n`);
-                    refreshGitStatus();
-                }
-            } catch (err) {
-                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
-            }
-        }
-
-        // --- CONFIGURATION ENGINE (Fault-Tolerant) ---
-        let autosaveInterval = null;
-        let autosaveCounter = 1;
-
-        function loadSettings() {
-            const defaults = { 
-                theme: 'chaos', edFont: 14, tmFont: 13, 
-                pat: '', repo: '', gitName: '', gitEmail: '', autosave: false, autosaveMax: 5, autosaveSecs: 30 
+            const themeMap = {
+                chaos: {
+                    ace: "ace/theme/chaos",
+                    term: {
+                        background: '#000000',
+                        foreground: '#888888',
+                        cursor: '#569cd6',
+                        selection: '#222222'
+                    },
+                    ui: {
+                        base: '#000000',
+                        panel: '#050505',
+                        surface: '#0a0a0a',
+                        hover: '#111111',
+                        borderDark: '#1a1a1a',
+                        borderLight: '#222222',
+                        textDim: '#444444',
+                        textMuted: '#666666',
+                        textMain: '#888888',
+                        textBright: '#cccccc',
+                        accent: '#569cd6'
+                    }},
+                industrial: {
+                    ace: "ace/theme/mono_industrial",
+                    term: {
+                        background: '#0a0a0a',
+                        foreground: '#777777',
+                        cursor: '#444444',
+                        selection: '#1a1a1a'
+                    },
+                    ui: {
+                        base: '#0a0a0a',
+                        panel: '#111111',
+                        surface: '#1a1a1a',
+                        hover: '#222222',
+                        borderDark: '#333333',
+                        borderLight: '#444444',
+                        textDim: '#666666',
+                        textMuted: '#888888',
+                        textMain: '#aaaaaa',
+                        textBright: '#dddddd',
+                        accent: '#ff9800'
+                    }},
+                twilight: {
+                    ace: "ace/theme/twilight",
+                    term: {
+                        background: '#141414',
+                        foreground: '#f8f8f8',
+                        cursor: '#8f9d6a',
+                        selection: '#323232'
+                    },
+                    ui: {
+                        base: '#141414',
+                        panel: '#1e1e1e',
+                        surface: '#252525',
+                        hover: '#2f2f2f',
+                        borderDark: '#3a3a3a',
+                        borderLight: '#4a4a4a',
+                        textDim: '#777777',
+                        textMuted: '#999999',
+                        textMain: '#bbbbbb',
+                        textBright: '#eeeeee',
+                        accent: '#8f9d6a'
+                    }},
+                tomorrow: {
+                    ace: "ace/theme/tomorrow_night_eighties",
+                    term: {
+                        background: '#2d2d2d',
+                        foreground: '#cccccc',
+                        cursor: '#6699cc',
+                        selection: '#515151'
+                    },
+                    ui: {
+                        base: '#2d2d2d',
+                        panel: '#363636',
+                        surface: '#3f3f3f',
+                        hover: '#4a4a4a',
+                        borderDark: '#555555',
+                        borderLight: '#666666',
+                        textDim: '#888888',
+                        textMuted: '#aaaaaa',
+                        textMain: '#cccccc',
+                        textBright: '#eeeeee',
+                        accent: '#6699cc'
+                    }}
             };
-            const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
-            
-            // Safely populate UI if elements exist
-            if (document.getElementById('set-theme')) document.getElementById('set-theme').value = saved.theme || 'chaos';
-            if (document.getElementById('set-ed-font')) document.getElementById('set-ed-font').value = saved.edFont || 14;
-            if (document.getElementById('set-tm-font')) document.getElementById('set-tm-font').value = saved.tmFont || 13;
-            if (document.getElementById('set-pat')) document.getElementById('set-pat').value = saved.pat || '';
-            if (document.getElementById('set-repo')) document.getElementById('set-repo').value = saved.repo || '';
-            if (document.getElementById('set-git-name')) document.getElementById('set-git-name').value = saved.gitName || '';
-            if (document.getElementById('set-git-email')) document.getElementById('set-git-email').value = saved.gitEmail || '';
-            if (document.getElementById('set-autosave')) document.getElementById('set-autosave').checked = saved.autosave || false;
-            if (document.getElementById('set-autosave-max')) document.getElementById('set-autosave-max').value = saved.autosaveMax || 5;
-            if (document.getElementById('set-autosave-interval')) document.getElementById('set-autosave-interval').value = saved.autosaveSecs || 30;
-            
-            applySettings(saved);
-        }
 
-        async function createAutoBackup(maxDepth) {
-            if (!currentOpenPath) return;
-            
-            const content = editor.getValue();
-            const parts = currentOpenPath.split(/[\\/]/);
-            const fileName = parts.pop();
-            const dir = parts.join('/');
-            
-            const backupName = `autosaved_${autosaveCounter}_${fileName}`;
-            const backupPath = dir ? `${dir}/${backupName}` : backupName;
+            ace.require("ace/ext/language_tools");
+            const editor = ace.edit("codeEditor");
+            const outputEditor = ace.edit("outputEditor");
 
-            try {
-                await fetch('/api/write', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ path: backupPath, content: content }) 
-                });
-                
-                term.write(`\r\n\x1b[90m[SYSTEM] Auto-backup secured: ${backupName}\x1b[0m\r\n`);
-                
-                autosaveCounter++;
-                if (autosaveCounter > maxDepth) autosaveCounter = 1;
-                
-                if (dir === currentDirectory || (!dir && currentDirectory === '/')) {
-                    loadTree(currentDirectory, null, true);
-                }
-            } catch (e) {
-                console.error("Backup failure.");
-            }
-        }
-
-        function applySettings(config) {
-            const t = themeMap[config.theme] || themeMap.chaos;
             [editor, outputEditor].forEach(ed => {
-                ed.setTheme(t.ace);
-                ed.setFontSize(parseInt(config.edFont));
+                ed.setTheme(themeMap.chaos.ace);
+                ed.setFontSize(14);
+                ed.setOptions({
+                    fixedWidthGutter: true,
+                    enableBasicAutocompletion: true,
+                    enableSnippets: true,
+                    enableLiveAutocompletion: true,
+                    wrap: "free"
+                });
             });
-            term.options.theme = Object.assign({}, t.term);
-            term.options.fontSize = parseInt(config.tmFont);
+
+            editor.session.setMode("ace/mode/csharp");
+
+            const term = new Terminal({
+                theme: themeMap.chaos.term,
+                fontFamily: 'Consolas, "Courier New", monospace',
+                fontSize: 13,
+                cursorBlink: true,
+                allowProposedApi: true
+            });
+            const fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(document.getElementById('terminalBox'));
             fitAddon.fit();
 
-            if (autosaveInterval) { 
-                clearInterval(autosaveInterval); 
-                autosaveInterval = null; 
-            }
+            const socket = new WebSocket(`ws://${window.location.host}`);
 
-            if (config.autosave) {
-                const intervalMs = (parseInt(config.autosaveSecs) || 30) * 1000;
-                autosaveInterval = setInterval(() => { 
-                    createAutoBackup(parseInt(config.autosaveMax) || 5);
-                }, intervalMs); 
-            }
-        }
-
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-
-        async function saveSettings() {
-            // Optional chaining (?.) prevents crashes if an HTML element is missing
-            const config = {
-                theme: document.getElementById('set-theme')?.value || 'chaos',
-                edFont: document.getElementById('set-ed-font')?.value || 14,
-                tmFont: document.getElementById('set-tm-font')?.value || 13,
-                pat: document.getElementById('set-pat')?.value || '',
-                repo: document.getElementById('set-repo')?.value || '',
-                gitName: document.getElementById('set-git-name')?.value || '',
-                gitEmail: document.getElementById('set-git-email')?.value || '',
-                autosave: document.getElementById('set-autosave')?.checked || false,
-                autosaveMax: parseInt(document.getElementById('set-autosave-max')?.value) || 5,
-                autosaveSecs: parseInt(document.getElementById('set-autosave-interval')?.value) || 30
+            socket.onopen = () => {
+                term.write('\x1b[34m[CRUCIBLE BASH LINK ACTIVE]\x1b[0m\r\n');
+                sendResize();
             };
-            
-            // This is the critical line that was failing previously
-            localStorage.setItem('crucible-settings', JSON.stringify(config));
-            
-            applySettings(config);
-            closeSettings();
-            term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
 
-            // Push Git Configurations to the Node.js backend
-            if (config.gitName || config.gitEmail) {
-                try { await fetch('/api/git/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: config.gitName, email: config.gitEmail, dir: currentDirectory }) }); } catch (e) {}
-            }
-            if (config.repo) {
-                try { await fetch('/api/git/remote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: config.repo, dir: currentDirectory }) }); } catch (e) {}
-            }
-        }
+            socket.onmessage = async (ev) => {
+                let rawData = ev.data;
+                if (rawData instanceof Blob) rawData = await rawData.text();
+                try {
+                    const msg = JSON.parse(rawData);
+                    if (msg.type === 'progress') {
+                        document.getElementById('progressFill').style.width = msg.data.percent + '%';
+                        document.getElementById('coreStatus').innerText = `${msg.data.percent === 100 ? 'SUCCESS': 'SYNCING'}: ${msg.data.file}`;
+                        document.getElementById('corePercent').innerText = msg.data.percent + '%';
+                    }
+                } catch (e) {
+                    term.write(rawData);
+                }
+            };
 
-        // --- UPDATED AUTHENTICATION LOGIC ---
-        // This overrides the previous authenticateGit function to read from settings first
-        async function authenticateGit() {
-            const saved = JSON.parse(localStorage.getItem('crucible-settings')) || {};
-            let token = saved.pat;
+            term.onData(data => {
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        type: 'input', data: data
+                    }));
+                }
+            });
 
-            if (!token) {
-                token = prompt("Enter GitHub Personal Access Token (PAT):");
-                if (token) {
-                    saved.pat = token;
-                    localStorage.setItem('crucible-settings', JSON.stringify(saved));
-                    document.getElementById('set-pat').value = token;
+            function sendResize() {
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        type: 'resize', cols: term.cols, rows: term.rows
+                    }));
                 }
             }
 
-            if (!token) return;
+            window.onresize = () => {
+                fitAddon.fit();
+                sendResize();
+            };
 
-            try {
-                const res = await fetch('/api/git/auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token, dir: currentDirectory })
-                });
+            function initResizers() {
+                const body = document.body;
+                const saved = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
+                body.style.gridTemplateColumns = saved.cols;
+                body.style.gridTemplateRows = saved.rows;
 
-                const data = await res.json();
-                if (data.error) term.write(`\r\n\x1b[31m[GIT AUTH ERROR] ${data.error}\x1b[0m\r\n`);
-                else term.write(`\r\n\x1b[32m[SYSTEM] Git Authentication Token Injected.\x1b[0m\r\n`);
-            } catch (err) {
-                term.write(`\r\n\x1b[31m[SYSTEM] Handshake Failed.\x1b[0m\r\n`);
-            }
-        }
+                const startDragging = (id, type) => {
+                    const resizer = document.getElementById(id);
+                    resizer.onmousedown = (e) => {
+                        body.classList.add('dragging');
+                        resizer.classList.add('active');
 
-        // --- UPDATED INITIALIZATION ---
-        // Overwrite the existing window.onload at the very bottom of the script
-        window.onload = () => {
-            loadTree();
-            initResizers();
-            loadSettings();
-            term.focus();
-        };
+                        document.onmousemove = (moveE) => {
+                            const cols = body.style.gridTemplateColumns.split(' ');
+                            const rows = body.style.gridTemplateRows.split(' ');
 
-        // --- WORKSPACE STATE ENGINE ---
-        function saveWorkspaceState() {
-            // Wait a microsecond for the UI to settle before taking the snapshot
-            setTimeout(() => {
-                const state = {
-                    dir: currentDirectory,
-                    tabs: Object.keys(openTabs),
-                    active: currentOpenPath
+                            if (type === 'sidebar') {
+                                cols[0] = Math.max(40, moveE.clientX) + 'px';
+                            } else if (type === 'editor') {
+                                const sidebarW = parseInt(cols[0]);
+                                cols[1] = Math.max(50, moveE.clientX - sidebarW) + 'px';
+                            } else if (type === 'terminal') {
+                                rows[1] = Math.max(50, window.innerHeight - moveE.clientY) + 'px';
+                            }
+
+                            body.style.gridTemplateColumns = cols.join(' ');
+                            body.style.gridTemplateRows = rows.join(' ');
+                            [editor,
+                                outputEditor].forEach(ed => ed.resize());
+                            fitAddon.fit();
+                        };
+
+                        document.onmouseup = () => {
+                            body.classList.remove('dragging');
+                            resizer.classList.remove('active');
+                            document.onmousemove = null;
+                            document.onmouseup = null;
+                            localStorage.setItem('crucible-layout', JSON.stringify({
+                                cols: body.style.gridTemplateColumns,
+                                rows: body.style.gridTemplateRows
+                            }));
+                        };
+                    };
                 };
-                localStorage.setItem('crucible-workspace', JSON.stringify(state));
-            }, 50);
-        }
 
-        async function restoreWorkspaceState() {
-            const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
-
-            if (!saved || !saved.dir) {
-                // First boot ever: load root
-                loadTree();
-                return;
+                startDragging('resizer-sb', 'sidebar');
+                startDragging('resizer-ed', 'editor');
+                startDragging('resizer-tm', 'terminal');
             }
 
-            // 1. Restore the directory tree
-            await loadTree(saved.dir);
+            // Add this function to handle the UI toggle
+            function toggleAutoFormat() {
+                autoFormatOnSave = !autoFormatOnSave;
+                const btn = document.getElementById('formatToggle');
 
-            // 2. Re-open all the tabs silently
-            if (saved.tabs && saved.tabs.length > 0) {
-                for (const path of saved.tabs) {
-                    try {
-                        const fileName = path.split(/[\\/]/).pop();
-                        const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
-                        if (!res.ok) continue; // Skip if file was deleted externally
-
-                        const content = await res.text();
-                        const syntaxMode = getSyntaxMode(fileName);
-                        const session = ace.createEditSession(content, syntaxMode);
-                        session.setUseWrapMode(editor.getOption("wrap") !== "off");
-
-                        openTabs[path] = { session, name: fileName };
-                        createTabUI(path, fileName);
-                    } catch(e) { console.error("Could not restore tab: " + path); }
+                if (autoFormatOnSave) {
+                    btn.classList.add('active');
+                    btn.style.color = '#2ecc71'; // Green to show it's armed
+                    term.write(`\r\n\x1b[32m[SYSTEM] Auto-Format on Save ENABLED.\x1b[0m\r\n`);
+                } else {
+                    btn.classList.remove('active');
+                    btn.style.color = 'var(--ui-text-muted)';
+                    term.write(`\r\n\x1b[90m[SYSTEM] Auto-Format on Save DISABLED.\x1b[0m\r\n`);
                 }
             }
 
-            // 3. Focus the tab you were actually looking at
-            if (saved.active && openTabs[saved.active]) {
-                switchTab(saved.active);
-            } else {
-                // If no active tab, but tabs exist, focus the last one
+            async function runGlobalSearch() {
+                const query = document.getElementById('globalSearchInput').value;
+                const resultsBox = document.getElementById('searchResults');
+                if (!query) {
+                    resultsBox.style.display = 'none'; return;
+                }
+                resultsBox.innerHTML = '<div class="search-item">Scanning Forge...</div>';
+                resultsBox.style.display = 'block';
+                try {
+                    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&dir=${encodeURIComponent(currentDirectory)}`);
+                    const data = await res.json();
+                    resultsBox.innerHTML = '';
+                    if (data.length === 0) {
+                        resultsBox.innerHTML = '<div class="search-item">No matches in current sector.</div>';
+                    } else {
+                        data.forEach(match => {
+                            const item = document.createElement('div');
+                            item.className = 'search-item';
+                            const fileName = match.path.split(/[\\/]/).pop();
+                            item.innerHTML = `<span class="search-meta">${fileName}:${match.line}</span> ${match.text}`;
+                            item.onclick = () => {
+                                openFile(match.path).then(() => {
+                                    editor.gotoLine(match.line, 0, true); editor.focus();
+                                });
+                            };
+                            resultsBox.appendChild(item);
+                        });
+                    }
+                } catch(e) {
+                    resultsBox.innerHTML = '<div class="search-item">Search failed.</div>';
+                }
+            }
+
+            async function loadTree(dir = '', parentElement = null, skipHistory = false) {
+                try {
+                    const res = await fetch(`/api/files?dir=${encodeURIComponent(dir)}`);
+                    const data = await res.json();
+                    if (!parentElement) {
+                        currentDirectory = data.currentDir;
+                        document.getElementById('manualPath').value = currentDirectory;
+                        updateBreadcrumbs(currentDirectory);
+                        if (!skipHistory) {
+                            if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
+                            navHistory.push(currentDirectory);
+                            navIndex++;
+                        }
+                        saveWorkspaceState();
+                        parentElement = document.getElementById('fileList');
+                        parentElement.innerHTML = '';
+                    }
+                    const ul = document.createElement('ul');
+                    ul.classList.add('expanded');
+                    data.entries.forEach(e => {
+                        const li = document.createElement('li');
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'fs-item';
+                        if (e.isDirectory) {
+                            itemDiv.innerHTML = `<span class="caret">▶</span> <span class="item-icon">📁</span> ${e.name}`;
+                            itemDiv.onclick = (ev) => {
+                                ev.stopPropagation();
+                                const childUl = li.querySelector('ul');
+                                if (childUl) {
+                                    childUl.classList.toggle('expanded');
+                                    itemDiv.querySelector('.caret').classList.toggle('open');
+                                } else {
+                                    itemDiv.querySelector('.caret').classList.add('open');
+                                    loadTree(e.path, li, true);
+                                }
+                            };
+                            itemDiv.ondblclick = (ev) => {
+                                ev.stopPropagation(); loadTree(e.path);
+                            };
+                        } else {
+                            itemDiv.innerHTML = `<span style="width:12px; display:inline-block;"></span><input type="checkbox" class="context-cb" value="${e.path}" onclick="event.stopPropagation()"> <span class="item-icon">📄</span> ${e.name}`;
+                            itemDiv.onclick = (ev) => {
+                                ev.stopPropagation(); openFile(e.path);
+                            };
+                        }
+                        li.appendChild(itemDiv);
+                        ul.appendChild(li);
+                    });
+                    parentElement.appendChild(ul);
+                } catch(e) {
+                    console.error("Failed to load tree",
+                        e);
+                }
+            }
+
+            function updateBreadcrumbs(dir) {
+                const bc = document.getElementById('breadcrumb');
+                bc.innerHTML = '';
+                const parts = dir.split(/[\\/]/).filter(p => p);
+                const rootSpan = document.createElement('span');
+                rootSpan.innerText = 'ROOT / ';
+                rootSpan.onclick = () => loadTree('/');
+                bc.appendChild(rootSpan);
+                let runningPath = '';
+                parts.forEach((p, i) => {
+                    runningPath += '/' + p;
+                    const s = document.createElement('span');
+                    s.innerText = p + (i < parts.length - 1 ? ' / ': '');
+                    const target = runningPath;
+                    s.onclick = () => loadTree(target);
+                    bc.appendChild(s);
+                });
+            }
+
+            function updateSystemStatus(percent, message, isError = false) {
+                const fill = document.getElementById('progressFill');
+                const status = document.getElementById('coreStatus');
+                const corePct = document.getElementById('corePercent');
+
+                fill.style.width = `${percent}%`;
+                fill.style.backgroundColor = isError ? '#f44336': 'var(--ui-bg-hover)';
+                status.innerText = message.toUpperCase();
+                corePct.innerText = `${percent}%`;
+
+                if (percent === 100) {
+                    setTimeout(() => {
+                        fill.style.width = '0%';
+                    }, 2000);
+                }
+            }
+
+            async function runAutomatedTests() {
+                updateSystemStatus(10, "Initializing Test Suite...");
+                try {
+                    const res = await fetch('/api/test', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            dir: currentDirectory, context: currentOpenPath
+                        })
+                    });
+                    const result = await res.json();
+
+                    updateSystemStatus(100, result.passed ? "Tests Passed": "Tests Failed", !result.passed);
+                    term.write(`\r\n\x1b[${result.passed ? '32': '31'}m[TEST RESULT] ${result.summary}\x1b[0m\r\n`);
+                } catch (e) {
+                    updateSystemStatus(0, "Test Error", true);
+                }
+            }
+
+            function goBack() {
+                if (navIndex > 0) {
+                    navIndex--; loadTree(navHistory[navIndex], null, true);
+                }
+            }
+            function goForward() {
+                if (navIndex < navHistory.length - 1) {
+                    navIndex++; loadTree(navHistory[navIndex], null, true);
+                }
+            }
+            function goUp() {
+                const parent = currentDirectory.split(/[\\/]/).slice(0, -1).join('/') || '/'; loadTree(parent);
+            }
+
+            async function openFile(path) {
+                const fileName = path.split(/[\\/]/).pop();
+                if (openTabs[path]) {
+                    switchTab(path); return;
+                }
+
+                const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
+                const content = await res.text();
+
+                const syntaxMode = getSyntaxMode(fileName);
+                const session = ace.createEditSession(content, syntaxMode);
+                session.setUseWrapMode(editor.getOption("wrap") !== "off");
+
+                openTabs[path] = {
+                    session,
+                    name: fileName
+                };
+                createTabUI(path, fileName);
+                switchTab(path);
+            }
+
+            function createTabUI(path, name) {
+                const tabBar = document.getElementById('tabBar');
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.id = `tab-${btoa(path).replace(/=/g, '')}`;
+                tab.innerHTML = `<span onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
+                tabBar.appendChild(tab);
+            }
+
+            function switchTab(path) {
+                currentOpenPath = path;
+                editor.setSession(openTabs[path].session);
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
+                if (activeTab) activeTab.classList.add('active');
+                editor.focus();
+                saveWorkspaceState();
+            }
+
+            function closeTab(path) {
+                const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
+                if (tabElement) tabElement.remove();
+                delete openTabs[path];
                 const remaining = Object.keys(openTabs);
                 if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
-            }
-        }
-
-        // --- RECALIBRATED: Match the 3-column array ---
-        function toggleSidebar() {
-            const sb = document.getElementById('mainSidebar');
-            const body = document.body;
-            const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-
-            sb.classList.toggle('collapsed');
-
-            if (sb.classList.contains('collapsed')) {
-                body.style.gridTemplateColumns = "40px 1fr 1fr";
-            } else {
-                body.style.gridTemplateColumns = savedLayout.cols;
-            }
-
-            [editor, outputEditor].forEach(ed => ed.resize());
-            fitAddon.fit();
-        }
-        
-        // --- AI COMMAND HISTORY ENGINE ---
-        const aiCmdHistory = [];
-        let aiCmdIndex = -1;
-
-        const aiInputEl = document.getElementById('aiInput');
-        aiInputEl.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                askAI();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (aiCmdHistory.length > 0) {
-                    aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
-                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                else {
+                    currentOpenPath = ''; editor.setValue('', -1);
                 }
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (aiCmdIndex > 0) {
-                    aiCmdIndex--;
-                    this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-                } else if (aiCmdIndex === 0) {
-                    aiCmdIndex = -1;
-                    this.value = '';
+                saveWorkspaceState();
+            }
+
+            // Update your existing saveFile() function
+            async function saveFile() {
+                if (!currentOpenPath) return;
+
+                // The Pre-Save Formatting Trigger
+                if (autoFormatOnSave) {
+                    try {
+                        const beautify = ace.require("ace/ext/beautify");
+                        beautify.beautify(editor.session);
+                    } catch (e) {
+                        term.write(`\r\n\x1b[31m[ERROR] Formatter failed to parse syntax.\x1b[0m\r\n`);
+                    }
+                }
+
+                try {
+                    const res = await fetch('/api/write', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            path: currentOpenPath, content: editor.getValue()
+                        })
+                    });
+
+                    if (!res.ok) throw new Error("Server write failed");
+                    term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Save failed: ${e.message}\x1b[0m\r\n`);
                 }
             }
-        });
-        
-        // --- GLOBAL KEYBINDING ENGINE ---
-        // 1. Bind strictly to the Ace Editors
-        [editor, outputEditor].forEach(ed => {
-            ed.commands.addCommand({
-                name: 'save',
-                bindKey: { win: 'Ctrl-S', mac: 'Cmd-S' },
-                exec: saveFile
+
+            function switchSidebar(viewName) {
+                const views = document.querySelectorAll('.sidebar-view');
+                const tabs = document.querySelectorAll('.sidebar-tabs button');
+
+                views.forEach(v => v.classList.remove('active'));
+                tabs.forEach(b => b.classList.remove('active'));
+
+                const targetView = document.getElementById(`view-${viewName}`);
+                const targetTab = document.getElementById(`tab-${viewName}`);
+
+                if (targetView && targetTab) {
+                    targetView.classList.add('active');
+                    targetTab.classList.add('active');
+                } else {
+                    document.getElementById('view-explorer')?.classList.add('active');
+                    document.getElementById('tab-explorer')?.classList.add('active');
+                    return;
+                }
+
+                if (viewName === 'git') {
+                    if (typeof refreshGitStatus === 'function') refreshGitStatus();
+                }
+            }
+
+            async function refreshGitStatus() {
+                const list = document.getElementById('gitStatusList');
+                list.innerHTML = '<div style="color: #555; font-size: 10px;">SCANNING...</div>';
+                try {
+                    const res = await fetch(`/api/git/status?dir=${encodeURIComponent(currentDirectory)}`);
+                    const data = await res.json();
+                    list.innerHTML = '';
+                    if (data.staged.length > 0) {
+                        list.innerHTML += `<div class="git-header"><span>STAGED</span></div>`;
+                        data.staged.forEach(item => list.appendChild(createGitItem(item, true)));
+                    }
+                    if (data.unstaged.length > 0) {
+                        list.innerHTML += `<div class="git-header"><span>CHANGES</span> <button onclick="gitAction('add-all')">+</button></div>`;
+                        data.unstaged.forEach(item => list.appendChild(createGitItem(item, false)));
+                    }
+                    if (data.staged.length === 0 && data.unstaged.length === 0) list.innerHTML = '<div style="color: #444; padding: 10px;">CLEAN</div>';
+                } catch (err) {
+                    list.innerHTML = `<div style="color: #e74c3c;">GIT OFFLINE</div>`;
+                }
+            }
+
+            function createGitItem(item, isStaged) {
+                const div = document.createElement('div');
+                div.className = 'git-item';
+                const action = isStaged ? 'unstage': 'stage';
+                div.innerHTML = `<span onclick="openFile('${item.file}')" style="flex-grow:1;">${item.file.split('/').pop()}</span>
+                <span class="git-status-badge status-${item.status}">${item.status}</span>
+                <button onclick="gitAction('${action}', '${item.file}')">${isStaged ? '-': '+'}</button>`;
+                return div;
+            }
+
+            async function gitAction(action, file = '') {
+                await fetch('/api/git/action', {
+                    method: 'POST', headers: {
+                        'Content-Type': 'application/json'
+                    }, body: JSON.stringify({
+                            action, file, dir: currentDirectory
+                        })
+                });
+                refreshGitStatus();
+            }
+
+            async function createBranch() {
+                const branchName = prompt("ENTER NEW FEATURE BRANCH NAME:");
+                if (!branchName) return;
+
+                try {
+                    await gitAction('checkout', {
+                        branch: branchName, create: true
+                    });
+                    term.write(`\r\n\x1b[32m[GIT] SWITCHED TO NEW SECTOR: ${branchName}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[GIT ERR] BRANCH ALLOCATION FAILED.\x1b[0m\r\n`);
+                }
+            }
+
+            async function mergeBranch() {
+                const target = prompt("MERGE WHICH BRANCH INTO CURRENT?");
+                if (!target) return;
+
+                term.write(`\r\n\x1b[33m[SYSTEM] INITIATING CONFLICT DETECTION...\x1b[0m\r\n`);
+                try {
+                    const res = await fetch('/api/git/action', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'merge', target, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+
+                    if (data.conflicts) {
+                        term.write(`\r\n\x1b[31m[CONFLICT] AUTOMATIC RESOLUTION FAILED. MANUAL INTERVENTION REQUIRED.\x1b[0m\r\n`);
+                    } else {
+                        term.write(`\r\n\x1b[32m[SUCCESS] SECTOR MERGED SUCCESSFULLY.\x1b[0m\r\n`);
+                    }
+                    refreshGitStatus();
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] MERGE HANDSHAKE TIMED OUT.\x1b[0m\r\n`);
+                }
+            }
+
+            async function askAI() {
+                const input = document.getElementById('aiInput');
+                const directive = input.value.trim();
+                if (!directive) return;
+
+                const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
+                input.value = 'PROCESSING...';
+
+                try {
+                    console.log("PROMPT SENT TO AI:", `Context: ${contextFiles}\nDirective: ${directive}\nBuffer:\n${editor.getValue()}`);
+                    const res = await fetch('http://localhost:3001/api/ai', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            history: [{
+                                role: "user",
+                                content: `INSTRUCTIONS: ${directive}\n\nFILE CONTEXT LIST: ${contextFiles.join(', ')}\n\nCURRENT BUFFER CONTENT:\n${editor.getValue()}`
+                            }]
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const errBody = await res.text();
+                        throw new Error(`Server ${res.status}: ${errBody}`);
+                    }
+
+                    const data = await res.json();
+                    let rawContent = "";
+
+                    // --- EXPLICIT ERROR CATCHER ---
+                    if (data.error) {
+                        const errorMsg = typeof data.error === 'string' ? data.error: JSON.stringify(data.error);
+                        throw new Error(`Backend rejected request: ${errorMsg}`);
+                    }
+
+                    // --- UNIVERSAL PAYLOAD HUNTER ---
+                    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+                        rawContent = data.choices[0].message.content; // OpenAI
+                    } else if (data.choices && data.choices[0] && data.choices[0].text) {
+                        rawContent = data.choices[0].text; // OpenAI Legacy
+                    } else if (data.message && data.message.content) {
+                        rawContent = data.message.content; // Ollama
+                    } else if (data.response) {
+                        rawContent = data.response; // Standard Node Proxy
+                    } else if (data.reply) {
+                        rawContent = data.reply; // Alt Proxy
+                    } else if (typeof data === 'string') {
+                        rawContent = data; // Raw String
+                    } else {
+                        throw new Error(`Unknown payload structure. Keys found: ${Object.keys(data).join(', ')}`);
+                    }
+
+                    rawContent = rawContent.trim();
+
+                    // --- BULLETPROOF MARKDOWN STRIPPER ---
+                    if (rawContent.startsWith("```")) {
+                        const lines = rawContent.split('\n');
+                        lines.shift(); // Drop the top fence
+                        if (lines.length > 0 && lines[lines.length - 1].trim().startsWith("```")) {
+                            lines.pop(); // Drop the bottom fence
+                        }
+                        rawContent = lines.join('\n').trim();
+                    }
+
+                    outputEditor.setValue(rawContent, -1);
+                    term.write(`\r\n\x1b[32m[SUCCESS] AI logic loaded to output buffer.\x1b[0m\r\n`);
+
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] AI Handshake Failed: ${e.message}\x1b[0m\r\n`);
+                } finally {
+                    input.value = '';
+                }
+            }
+
+            async function runShadowTest() {
+                if (!currentOpenPath) return;
+                const content = outputEditor.getValue();
+                const ext = currentOpenPath.split('.').pop().toLowerCase();
+                const ind = document.getElementById('shadowStatus');
+                const statusText = document.getElementById('coreStatus');
+
+                statusText.innerText = `LINTING ${ext.toUpperCase()}...`;
+                ind.style.backgroundColor = '#f1c40f';
+
+                if (ext === 'html' || ext === 'js') {
+                    const isValid = validateWebCode(content, ext);
+                    if (!isValid.success) {
+                        statusText.innerText = isValid.error;
+                        ind.style.backgroundColor = '#f44336';
+                        return;
+                    }
+                }
+
+                try {
+                    const res = await fetch('/api/shadow-test', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            path: currentOpenPath, content: content
+                        })
+                    });
+                    const result = await res.json();
+
+                    if (result.error) {
+                        statusText.innerText = "LINT ERROR";
+                        ind.style.backgroundColor = '#f44336';
+                    } else {
+                        statusText.innerText = "LINT PASSED";
+                        ind.style.backgroundColor = '#2ecc71';
+                    }
+                } catch (e) {
+                    statusText.innerText = "LINT TIMEOUT";
+                    ind.style.backgroundColor = '#f44336';
+                }
+            }
+
+            function validateWebCode(content, type) {
+                if (type === 'html') {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(content, "text/html");
+                    const errors = doc.querySelectorAll("parsererror");
+                    return errors.length > 0 ?
+                    {
+                        success: false,
+                        error: "Malformed HTML Structure"
+                    }:
+                    {
+                        success: true
+                    };
+                }
+
+                if (type === 'js') {
+                    try {
+                        new Function(content);
+                        return {
+                            success: true
+                        };
+                    } catch (e) {
+                        return {
+                            success: false,
+                            error: `JS Syntax: ${e.message}`
+                        };
+                    }
+                }
+                return {
+                    success: true
+                };
+            }
+
+            function applyDiffMerge() {
+                if (outputEditor.getValue().length < editor.getValue().length * 0.7) {
+                    if (!confirm("AI output is significantly shorter. Potential gutting detected. Proceed?")) return;
+                }
+                editor.setValue(outputEditor.getValue(), -1);
+                term.write(`\r\n\x1b[34m[SYSTEM] Merge applied.\x1b[0m\r\n`);
+            }
+
+            function toggleWrap() {
+                const wrapping = editor.getOption("wrap") === "off";
+                [editor,
+                    outputEditor].forEach(ed => ed.setOption("wrap", wrapping ? "free": "off"));
+                document.getElementById('wrapToggle').classList.toggle('active', wrapping);
+                Object.values(openTabs).forEach(tab => tab.session.setUseWrapMode(wrapping));
+            }
+
+            function applySettings(config) {
+                const t = themeMap[config.theme] || themeMap.chaos;
+
+                const root = document.documentElement;
+                if (t.ui) {
+                    root.style.setProperty('--ui-bg-base', t.ui.base);
+                    root.style.setProperty('--ui-bg-panel', t.ui.panel);
+                    root.style.setProperty('--ui-bg-surface', t.ui.surface);
+                    root.style.setProperty('--ui-bg-hover', t.ui.hover);
+                    root.style.setProperty('--ui-border-dark', t.ui.borderDark);
+                    root.style.setProperty('--ui-border-light', t.ui.borderLight);
+                    root.style.setProperty('--ui-text-dim', t.ui.textDim);
+                    root.style.setProperty('--ui-text-muted', t.ui.textMuted);
+                    root.style.setProperty('--ui-text-main', t.ui.textMain);
+                    root.style.setProperty('--ui-text-bright', t.ui.textBright);
+                    root.style.setProperty('--ui-accent', t.ui.accent);
+                }
+
+                [editor,
+                    outputEditor].forEach(ed => {
+                        ed.setTheme(t.ace);
+                        ed.setFontSize(parseInt(config.edFont) || 14);
+                    });
+                term.options.theme = Object.assign({}, t.term);
+                term.options.fontSize = parseInt(config.tmFont) || 13;
+                fitAddon.fit();
+
+                term.write(`\r\n\x1b[90m[SYSTEM] Forge Settings Applied.\x1b[0m\r\n`);
+            }
+
+            function loadSettings() {
+                const defaults = {
+                    theme: 'chaos',
+                    edFont: 14,
+                    tmFont: 13,
+                    pat: '',
+                    repo: '',
+                    gitName: '',
+                    gitEmail: ''
+                };
+
+                const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
+                applySettings(saved);
+
+                document.getElementById('set-theme').value = saved.theme;
+                document.getElementById('set-ed-font').value = saved.edFont;
+                document.getElementById('set-tm-font').value = saved.tmFont;
+                document.getElementById('set-pat').value = saved.pat || '';
+                document.getElementById('set-repo').value = saved.repo || '';
+                document.getElementById('set-git-name').value = saved.gitName || '';
+                document.getElementById('set-git-email').value = saved.gitEmail || '';
+            }
+
+            function saveSettings() {
+                const config = {
+                    theme: document.getElementById('set-theme').value,
+                    edFont: document.getElementById('set-ed-font').value,
+                    tmFont: document.getElementById('set-tm-font').value,
+                    pat: document.getElementById('set-pat').value,
+                    repo: document.getElementById('set-repo').value,
+                    gitName: document.getElementById('set-git-name').value,
+                    gitEmail: document.getElementById('set-git-email').value
+                };
+
+                localStorage.setItem('crucible-settings', JSON.stringify(config));
+                applySettings(config);
+                closeSettings();
+                term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
+            }
+
+            function openSettings() {
+                document.getElementById('settingsModal').style.display = 'flex';
+            }
+            function closeSettings() {
+                document.getElementById('settingsModal').style.display = 'none';
+            }
+
+            function saveWorkspaceState() {
+                setTimeout(() => {
+                    const state = {
+                        dir: currentDirectory, tabs: Object.keys(openTabs), active: currentOpenPath
+                    };
+                    localStorage.setItem('crucible-workspace', JSON.stringify(state));
+                }, 50);
+            }
+
+            async function restoreWorkspaceState() {
+                const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
+                if (!saved || !saved.dir) {
+                    await loadTree('');
+                    return;
+                }
+                await loadTree(saved.dir);
+                if (saved.tabs) {
+                    for (const path of saved.tabs) {
+                        try {
+                            const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
+                            if (res.ok) {
+                                const content = await res.text();
+                                const fileName = path.split(/[\\/]/).pop();
+                                const session = ace.createEditSession(content, getSyntaxMode(fileName));
+                                openTabs[path] = {
+                                    session,
+                                    name: fileName
+                                };
+                                createTabUI(path, fileName);
+                            }
+                        } catch(e) {}
+                    }
+                }
+                if (saved.active && openTabs[saved.active]) switchTab(saved.active);
+            }
+
+            async function renameItem() {
+                if (!currentOpenPath) return alert("Select an active file in the editor first.");
+                const oldName = currentOpenPath.split(/[\\/]/).pop();
+                const newName = prompt("Rename to:", oldName);
+                if (!newName || newName === oldName) return;
+
+                const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join('/');
+                const newPath = parentDir ? `${parentDir}/${newName}`: newName;
+
+                try {
+                    const res = await fetch('/api/rename', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            oldPath: currentOpenPath, newPath: newPath
+                        })
+                    });
+                    const result = await res.json();
+                    if (result.error) throw new Error(result.error);
+
+                    const oldPath = currentOpenPath;
+                    delete openTabs[oldPath];
+                    document.getElementById(`tab-${btoa(oldPath).replace(/=/g, '')}`)?.remove();
+
+                    await loadTree(currentDirectory);
+                    await openFile(newPath);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Renamed: ${oldName} -> ${newName}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Rename failed: ${e.message}\x1b[0m\r\n`);
+                }
+            }
+
+            async function deleteItem() {
+                if (!currentOpenPath) return alert("Select an active file in the editor first.");
+                if (!confirm(`Are you sure you want to PERMANENTLY PURGE ${currentOpenPath}?`)) return;
+
+                try {
+                    const res = await fetch('/api/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            path: currentOpenPath
+                        })
+                    });
+                    const result = await res.json();
+                    if (result.error) throw new Error(result.error);
+
+                    closeTab(currentOpenPath);
+                    await loadTree(currentDirectory);
+                    term.write(`\r\n\x1b[33m[SYSTEM] Deleted: ${currentOpenPath}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Delete failed: ${e.message}\x1b[0m\r\n`);
+                }
+            }
+
+            async function createNewFile() {
+                const name = prompt("Enter new file name (with extension):");
+                if (!name) return;
+                const path = currentDirectory ? `${currentDirectory}/${name}`: name;
+
+                try {
+                    const res = await fetch('/api/write', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            path, content: ''
+                        })
+                    });
+                    if (!res.ok) throw new Error("Server write failed");
+
+                    await loadTree(currentDirectory);
+                    await openFile(path);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Created File: ${name}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Create failed.\x1b[0m\r\n`);
+                }
+            }
+
+            async function createNewFolder() {
+                const name = prompt("Enter new directory name:");
+                if (!name) return;
+                const path = currentDirectory ? `${currentDirectory}/${name}`: name;
+
+                try {
+                    const res = await fetch('/api/mkdir', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            path
+                        })
+                    });
+                    if (!res.ok) throw new Error("Server mkdir failed");
+
+                    await loadTree(currentDirectory);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Created Directory: ${name}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Mkdir failed.\x1b[0m\r\n`);
+                }
+            }
+
+            async function startIndexing() {
+                const statusEl = document.getElementById('coreStatus');
+                statusEl.innerText = "Targeting Vector Arrays...";
+                const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
+
+                try {
+                    const res = await fetch('/api/index', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            selectedFiles: contextFiles, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+                    term.write(`\r\n\x1b[34m[SYSTEM] Indexing sequence initiated for ${data.count || 'all'} targets.\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Indexer handshake failed.\x1b[0m\r\n`);
+                }
+            }
+
+            async function initGitRepo() {
+                if (!confirm(`Initialize empty Git repository in ${currentDirectory}?`)) return;
+                await gitAction('init');
+            }
+
+            async function commitChanges() {
+                const msgInput = document.getElementById('commitMessage');
+                const message = msgInput.value.trim();
+                if (!message) return alert("Commit message is required.");
+
+                try {
+                    const res = await fetch('/api/git/action', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'commit', message, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+
+                    msgInput.value = '';
+                    term.write(`\r\n\x1b[32m[GIT] Commit successful: ${message}\x1b[0m\r\n`);
+                    refreshGitStatus();
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[GIT ERROR] Commit failed: ${e.message}\x1b[0m\r\n`);
+                }
+            }
+
+            async function authenticateGit() {
+                const token = prompt("Enter GitHub Personal Access Token (PAT):");
+                if (!token) return;
+
+                try {
+                    const res = await fetch('/api/git/auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            token, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Git PAT injected into sector.\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Auth injection failed.\x1b[0m\r\n`);
+                }
+            }
+
+            async function setGitRemote() {
+                const url = prompt("Enter Repository Remote URL:");
+                if (!url) return;
+
+                try {
+                    const res = await fetch('/api/git/remote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            url, dir: currentDirectory
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+                    term.write(`\r\n\x1b[32m[SYSTEM] Remote origin locked: ${url}\x1b[0m\r\n`);
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[ERROR] Remote configuration failed.\x1b[0m\r\n`);
+                }
+            }
+
+            function togglePreview() {
+                const preview = document.getElementById('previewFrame');
+                const outputEd = document.getElementById('outputEditor');
+                const btn = document.getElementById('previewBtn');
+                const vpControls = document.getElementById('viewportControls');
+
+                isPreviewActive = !isPreviewActive;
+
+                outputEd.style.display = isPreviewActive ? 'none': 'block';
+                preview.style.display = isPreviewActive ? 'block': 'none';
+                vpControls.style.display = isPreviewActive ? 'flex': 'none';
+
+                btn.innerText = isPreviewActive ? 'Close': 'Preview';
+                btn.style.color = isPreviewActive ? '#e74c3c': '#3498db';
+
+                if (isPreviewActive) renderPreview();
+            }
+
+            function setViewport(width) {
+                const preview = document.getElementById('previewFrame');
+                preview.style.width = width;
+                preview.style.margin = width === '100%' ? '0': '0 auto';
+            }
+
+            function togglePreviewBackground() {
+                const preview = document.getElementById('previewFrame');
+                const states = ['#ffffff',
+                    '#0a0a0a',
+                    'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23222\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23111\'/%3E%3C/svg%3E")'];
+                previewBgState = (previewBgState + 1) % states.length;
+                preview.style.background = states[previewBgState];
+            }
+
+            function renderPreview() {
+                if (!isPreviewActive) return;
+                const code = editor.getValue();
+                const interceptor = `<script>
+                (function() {
+                const pipe = (type, args) => {
+                window.parent.postMessage({ type: 'preview-' + type, data: args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') }, '*');
+                };
+                console.log = (...args) => pipe('log', args);
+                console.error = (...args) => pipe('error', args);
+                })();
+                <\/script>`;
+                document.getElementById('previewFrame').srcdoc = interceptor + code;
+            }
+
+            editor.on("change", () => {
+                if (isPreviewActive) {
+                    clearTimeout(previewTimeout);
+                    previewTimeout = setTimeout(renderPreview, 500);
+                }
             });
-        });
 
-        // 2. The Global Interlock
-        // Prevents the browser's "Save As" popup if the IDE loses focus
-        window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-                e.preventDefault();
-                saveFile();
-            }
-        });
+            window.addEventListener('message', (e) => {
+                if (e.data.type === 'preview-log') term.write(`\r\n\x1b[36m[LOG]\x1b[0m ${e.data.data}\r\n`);
+                if (e.data.type === 'preview-error') term.write(`\r\n\x1b[31m[ERR]\x1b[0m ${e.data.data}\r\n`);
+            });
 
-        window.onload = () => {
-            initResizers();
+            // ==========================================
+            // --- EASTER EGG ENGINE & INPUT LISTENER ---
+            // ==========================================
+            const delay = ms => new Promise(res => setTimeout(res, ms));
 
-            // If you added the settings modal earlier, keep this line.
-            // If not, you can delete it.
-            if (typeof loadSettings === 'function') loadSettings();
+            const easterEgg = {
+                activate: async () => {
+                    // Echo to terminal so we know the trigger actually worked
+                    term.write('\r\n\x1b[35m[SYSTEM] Override accepted. Routing to status bar...\x1b[0m\r\n');
 
-            restoreWorkspaceState();
-            term.focus();
-        };
-    </script>
-</body>
+                    const statusText = document.getElementById('coreStatus');
+                    const statusIndicator = document.getElementById('shadowStatus');
+
+                    if (!statusText || !statusIndicator) {
+                        term.write('\r\n\x1b[31m[ERROR] Easter Egg failed: Could not find Status Bar UI elements.\x1b[0m\r\n');
+                        return;
+                    }
+
+                    const update = (msg, color) => {
+                        statusText.innerText = msg.toUpperCase();
+                        statusIndicator.style.backgroundColor = color;
+                    };
+
+                    update('Initializing Sequence...', '#569cd6');
+                    await delay(2000);
+                    update('Welcome to the Crucible Industrial Forge', '#2ecc71');
+                    await delay(2000);
+                    update('Adherence to physics is required', '#888888');
+                    await delay(2000);
+                    update('Use "forge hack" for unexpected results', '#569cd6');
+                    await delay(2000);
+                    update('Unauthorized access is strictly prohibited', '#f44336');
+                    await delay(2000);
+                    update('Enjoy your stay', '#2ecc71');
+
+                    await delay(3000);
+                    update('System Operational', '#444444');
+                }
+            };
+
+            // --- GLOBAL INPUTS & SHORTCUTS ---
+            const inputField = document.getElementById('aiInput');
+
+            // 1. OBLITERATE lingering ghost listeners
+            const cleanInput = inputField.cloneNode(true);
+            inputField.parentNode.replaceChild(cleanInput, inputField);
+
+            // 2. The ONE unified listener with History Memory
+            cleanInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const cmd = this.value.trim();
+                    if (!cmd) return;
+
+                    // --- COMMAND HISTORY LOGIC ---
+                    // Only add to history if it's different from the last command
+                    if (aiCmdHistory[aiCmdHistory.length - 1] !== cmd) {
+                        aiCmdHistory.push(cmd);
+                        if (aiCmdHistory.length > 50) aiCmdHistory.shift(); // Keep it lean
+                    }
+                    aiCmdIndex = -1; // Reset index for the next time you use arrows
+                    // ------------------------------
+
+                    // Gatekeeper: Check for Easter Egg
+                    if (cmd.toLowerCase() === 'forge hack') {
+                        this.value = '';
+                        easterEgg.activate();
+                        return;
+                    }
+
+                    // Standard AI Route
+                    askAI();
+
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (aiCmdHistory.length > 0) {
+                        // Move backward through time
+                        aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
+                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+
+                        // Move cursor to end of line
+                        setTimeout(() => this.setSelectionRange(this.value.length, this.value.length), 0);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (aiCmdIndex > 0) {
+                        // Move forward through time
+                        aiCmdIndex--;
+                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                    } else if (aiCmdIndex === 0) {
+                        // Back to present day (empty input)
+                        aiCmdIndex = -1;
+                        this.value = '';
+                    }
+                }
+            });
+            // ==========================================
+
+            window.onload = async () => {
+                try {
+                    if (typeof initResizers === 'function') initResizers();
+                    if (typeof loadSettings === 'function') loadSettings();
+
+                    if (typeof restoreWorkspaceState === 'function') {
+                        await restoreWorkspaceState();
+                    } else {
+                        await loadTree('');
+                    }
+
+                    if (term) {
+                        term.focus();
+                        term.write('\x1b[32m[FORGE ONLINE]\x1b[0m\r\n');
+                    }
+                } catch (e) {
+                    console.error("Boot Sequence Halted:", e);
+                }
+            };
+
+            document.getElementById('aiInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    askAI();
+
+                    // Check for the secret phrase
+                    if (this.value.trim().toLowerCase() === 'forge hack') {
+                        this.value = ''; // clear the box
+                        easterEgg.activate();
+                        return; // Stop here, don't send to AI
+                    }
+
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (aiCmdHistory.length > 0) {
+                        aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
+                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (aiCmdIndex > 0) {
+                        aiCmdIndex--;
+                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
+                    } else if (aiCmdIndex === 0) {
+                        aiCmdIndex = -1;
+                        this.value = '';
+                    }
+                }
+            });
+
+            [editor, outputEditor].forEach(ed => {
+                ed.commands.addCommand({
+                    name: 'save',
+                    bindKey: {
+                        win: 'Ctrl-S', mac: 'Cmd-S'
+                    },
+                    exec: saveFile
+                });
+            });
+
+        </script>
+    </body>
 </html>

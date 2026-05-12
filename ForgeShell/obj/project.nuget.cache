@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "ZpvpHoYzFw8=",
+  "success": true,
+  "projectFilePath": "/home/brian/Downloads/Crucible-main/ForgeShell/ForgeShell.csproj",
+  "expectedPackageFiles": [
+    "/home/brian/.nuget/packages/photino.native/4.0.22/photino.native.4.0.22.nupkg.sha512",
+    "/home/brian/.nuget/packages/photino.net/4.0.16/photino.net.4.0.16.nupkg.sha512"
+  ],
+  "logs": []
+}
