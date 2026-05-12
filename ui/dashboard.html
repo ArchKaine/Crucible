@@ -632,6 +632,16 @@
 
                 <div id="gitStatusList" class="git-list"></div>
             </div>
+
+            <div id="view-history" class="sidebar-view">
+                <div class="git-header">
+                    <span>REVISION ARCHIVE</span>
+                    <button onclick="clearRevisionLog()" title="Purge local temporal logs" style="padding: 2px 5px;">PURGE</button>
+                </div>
+
+                <div id="revisionList" class="git-list">
+                </div>
+            </div>
         </div>
 
         <div class="resizer-v" id="resizer-sb"></div>
@@ -654,7 +664,20 @@
                     </div>
                 </div>
             </div>
+
             <div id="tabBar"></div>
+
+            <div class="toolbar" style="margin: 0; border-bottom: 1px solid #1a1a1a; background: #050505; padding: 5px;">
+                <button onclick="editor.undo()" title="Undo (Ctrl+Z)">↶ UNDO</button>
+                <button onclick="editor.redo()" title="Redo (Ctrl+Y)">↷ REDO</button>
+                <span style="width: 10px;"></span>
+                <button onclick="editor.execCommand('find')" title="Find / Replace (Ctrl+F)">🔍 FIND</button>
+                <button onclick="editor.toggleCommentLines()" title="Toggle Line Comment (Ctrl+/)">// COMMENT</button>
+                <button onclick="triggerManualFormat()" title="Format Document">▤ FORMAT</button>
+                <span style="width: 10px;"></span>
+                <button onclick="toggleSplitView()" id="splitBtn" title="Toggle Dual-Buffer" class="active">◫ SPLIT</button>
+                <button onclick="toggleTerminal()" id="termBtn" title="Toggle Terminal" class="active">🖵 TERM</button>
+            </div>
             <div id="codeEditor"></div>
         </div>
 
@@ -699,8 +722,8 @@
                     </div>
                     <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 15px; flex: 1;">
                         <div style="display: flex; align-items: center; gap: 5px;">
-                            <input type="checkbox" id="set-autosave">
-                            <label style="margin: 0;">Auto-Backup</label>
+                            <input type="checkbox" id="set-wordwrap" checked>
+                            <label style="margin: 0;">Word Wrap</label>
                         </div>
                         <div style="display: flex; align-items: center; gap: 5px;">
                             <label style="margin: 0;">Depth:</label>
@@ -764,6 +787,7 @@
         <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
 
         <script>
@@ -776,7 +800,7 @@
             let isPreviewActive = false;
             let previewTimeout;
             let previewBgState = 0;
-            let autoFormatOnSave = false;
+            let autoFormatOnSave = true;
 
             const getSyntaxMode = (fileName) => {
                 const ext = fileName.split('.').pop().toLowerCase();
@@ -1229,9 +1253,7 @@
                 saveWorkspaceState();
             }
 
-            // Update your existing saveFile() function
             async function saveFile() {
-                if (!currentOpenPath) return;
 
                 // The Pre-Save Formatting Trigger
                 if (autoFormatOnSave) {
@@ -1243,22 +1265,15 @@
                     }
                 }
 
-                try {
-                    const res = await fetch('/api/write', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
+                if (!currentOpenPath) return;
+                await fetch('/api/write', {
+                    method: 'POST', headers: {
+                        'Content-Type': 'application/json'
+                    }, body: JSON.stringify({
                             path: currentOpenPath, content: editor.getValue()
                         })
-                    });
-
-                    if (!res.ok) throw new Error("Server write failed");
-                    term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Save failed: ${e.message}\x1b[0m\r\n`);
-                }
+                });
+                term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
             }
 
             function switchSidebar(viewName) {
@@ -1283,6 +1298,66 @@
                 if (viewName === 'git') {
                     if (typeof refreshGitStatus === 'function') refreshGitStatus();
                 }
+            }
+
+            // --- IDE ACTION CONTROLS ---
+
+            // 1. Manual Formatting Trigger
+            async function triggerManualFormat() {
+                const beautify = ace.require("ace/ext/beautify");
+                if (beautify) {
+                    beautify.beautify(editor.session);
+                    term.write('\r\n\x1b[32m[SYSTEM] Active document formatted.\x1b[0m\r\n');
+                } else {
+                    term.write('\r\n\x1b[31m[ERROR] Formatter engine not loaded.\x1b[0m\r\n');
+                }
+            }
+
+            // 2. Spatial Layout: Split View Toggle
+            let splitViewActive = true;
+            function toggleSplitView() {
+                const body = document.body;
+                const btn = document.getElementById('splitBtn');
+                splitViewActive = !splitViewActive;
+
+                if (splitViewActive) {
+                    // Restore from localStorage or default
+                    const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
+                    body.style.gridTemplateColumns = savedLayout.cols;
+                    btn.classList.add('active');
+                    term.write('\r\n\x1b[90m[SYSTEM] Dual-buffer active.\x1b[0m\r\n');
+                } else {
+                    // Collapse right panel (Output Container)
+                    const currentCols = body.style.gridTemplateColumns.split(' ');
+                    body.style.gridTemplateColumns = `${currentCols[0]} 1fr 0px`;
+                    btn.classList.remove('active');
+                    term.write('\r\n\x1b[90m[SYSTEM] Single editor mode active.\x1b[0m\r\n');
+                }
+
+                setTimeout(() => {
+                    editor.resize(); outputEditor.resize(); fitAddon.fit();
+                }, 150);
+            }
+
+            // 3. Spatial Layout: Terminal Toggle
+            let terminalActive = true;
+            function toggleTerminal() {
+                const body = document.body;
+                const btn = document.getElementById('termBtn');
+                terminalActive = !terminalActive;
+
+                if (terminalActive) {
+                    const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
+                    body.style.gridTemplateRows = savedLayout.rows;
+                    btn.classList.add('active');
+                } else {
+                    body.style.gridTemplateRows = "1fr 0px";
+                    btn.classList.remove('active');
+                }
+
+                setTimeout(() => {
+                    editor.resize(); outputEditor.resize(); fitAddon.fit();
+                }, 150);
             }
 
             async function refreshGitStatus() {
@@ -1398,48 +1473,23 @@
                     }
 
                     const data = await res.json();
-                    let rawContent = "";
 
-                    // --- EXPLICIT ERROR CATCHER ---
-                    if (data.error) {
-                        const errorMsg = typeof data.error === 'string' ? data.error: JSON.stringify(data.error);
-                        throw new Error(`Backend rejected request: ${errorMsg}`);
-                    }
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        let rawContent = data.choices[0].message.content;
 
-                    // --- UNIVERSAL PAYLOAD HUNTER ---
-                    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-                        rawContent = data.choices[0].message.content; // OpenAI
-                    } else if (data.choices && data.choices[0] && data.choices[0].text) {
-                        rawContent = data.choices[0].text; // OpenAI Legacy
-                    } else if (data.message && data.message.content) {
-                        rawContent = data.message.content; // Ollama
-                    } else if (data.response) {
-                        rawContent = data.response; // Standard Node Proxy
-                    } else if (data.reply) {
-                        rawContent = data.reply; // Alt Proxy
-                    } else if (typeof data === 'string') {
-                        rawContent = data; // Raw String
+                        const cleanedCode = rawContent
+                        .replace(/^``````$/i, '')
+                        .trim();
+
+                        outputEditor.setValue(cleanedCode, -1);
+                        term.write(`\r\n\x1b[32m[SUCCESS] AI logic loaded to output buffer.\x1b[0m\r\n`);
                     } else {
-                        throw new Error(`Unknown payload structure. Keys found: ${Object.keys(data).join(', ')}`);
+                        throw new Error("Malformed API response structure.");
                     }
-
-                    rawContent = rawContent.trim();
-
-                    // --- BULLETPROOF MARKDOWN STRIPPER ---
-                    if (rawContent.startsWith("```")) {
-                        const lines = rawContent.split('\n');
-                        lines.shift(); // Drop the top fence
-                        if (lines.length > 0 && lines[lines.length - 1].trim().startsWith("```")) {
-                            lines.pop(); // Drop the bottom fence
-                        }
-                        rawContent = lines.join('\n').trim();
-                    }
-
-                    outputEditor.setValue(rawContent, -1);
-                    term.write(`\r\n\x1b[32m[SUCCESS] AI logic loaded to output buffer.\x1b[0m\r\n`);
 
                 } catch (e) {
                     term.write(`\r\n\x1b[31m[ERROR] AI Handshake Failed: ${e.message}\x1b[0m\r\n`);
+                    console.error("Full AI Error:", e);
                 } finally {
                     input.value = '';
                 }
@@ -1916,104 +1966,6 @@
                 if (e.data.type === 'preview-error') term.write(`\r\n\x1b[31m[ERR]\x1b[0m ${e.data.data}\r\n`);
             });
 
-            // ==========================================
-            // --- EASTER EGG ENGINE & INPUT LISTENER ---
-            // ==========================================
-            const delay = ms => new Promise(res => setTimeout(res, ms));
-
-            const easterEgg = {
-                activate: async () => {
-                    // Echo to terminal so we know the trigger actually worked
-                    term.write('\r\n\x1b[35m[SYSTEM] Override accepted. Routing to status bar...\x1b[0m\r\n');
-
-                    const statusText = document.getElementById('coreStatus');
-                    const statusIndicator = document.getElementById('shadowStatus');
-
-                    if (!statusText || !statusIndicator) {
-                        term.write('\r\n\x1b[31m[ERROR] Easter Egg failed: Could not find Status Bar UI elements.\x1b[0m\r\n');
-                        return;
-                    }
-
-                    const update = (msg, color) => {
-                        statusText.innerText = msg.toUpperCase();
-                        statusIndicator.style.backgroundColor = color;
-                    };
-
-                    update('Initializing Sequence...', '#569cd6');
-                    await delay(2000);
-                    update('Welcome to the Crucible Industrial Forge', '#2ecc71');
-                    await delay(2000);
-                    update('Adherence to physics is required', '#888888');
-                    await delay(2000);
-                    update('Use "forge hack" for unexpected results', '#569cd6');
-                    await delay(2000);
-                    update('Unauthorized access is strictly prohibited', '#f44336');
-                    await delay(2000);
-                    update('Enjoy your stay', '#2ecc71');
-
-                    await delay(3000);
-                    update('System Operational', '#444444');
-                }
-            };
-
-            // --- GLOBAL INPUTS & SHORTCUTS ---
-            const inputField = document.getElementById('aiInput');
-
-            // 1. OBLITERATE lingering ghost listeners
-            const cleanInput = inputField.cloneNode(true);
-            inputField.parentNode.replaceChild(cleanInput, inputField);
-
-            // 2. The ONE unified listener with History Memory
-            cleanInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const cmd = this.value.trim();
-                    if (!cmd) return;
-
-                    // --- COMMAND HISTORY LOGIC ---
-                    // Only add to history if it's different from the last command
-                    if (aiCmdHistory[aiCmdHistory.length - 1] !== cmd) {
-                        aiCmdHistory.push(cmd);
-                        if (aiCmdHistory.length > 50) aiCmdHistory.shift(); // Keep it lean
-                    }
-                    aiCmdIndex = -1; // Reset index for the next time you use arrows
-                    // ------------------------------
-
-                    // Gatekeeper: Check for Easter Egg
-                    if (cmd.toLowerCase() === 'forge hack') {
-                        this.value = '';
-                        easterEgg.activate();
-                        return;
-                    }
-
-                    // Standard AI Route
-                    askAI();
-
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (aiCmdHistory.length > 0) {
-                        // Move backward through time
-                        aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
-                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-
-                        // Move cursor to end of line
-                        setTimeout(() => this.setSelectionRange(this.value.length, this.value.length), 0);
-                    }
-                } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (aiCmdIndex > 0) {
-                        // Move forward through time
-                        aiCmdIndex--;
-                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-                    } else if (aiCmdIndex === 0) {
-                        // Back to present day (empty input)
-                        aiCmdIndex = -1;
-                        this.value = '';
-                    }
-                }
-            });
-            // ==========================================
-
             window.onload = async () => {
                 try {
                     if (typeof initResizers === 'function') initResizers();
@@ -2038,14 +1990,6 @@
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     askAI();
-
-                    // Check for the secret phrase
-                    if (this.value.trim().toLowerCase() === 'forge hack') {
-                        this.value = ''; // clear the box
-                        easterEgg.activate();
-                        return; // Stop here, don't send to AI
-                    }
-
                 } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     if (aiCmdHistory.length > 0) {
