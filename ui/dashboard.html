@@ -620,8 +620,6 @@
                     <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
                     <input type="text" id="commitMessage" placeholder="Commit message...">
                     <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
-                    <button onclick="authenticateGit()" style="width: 100%; margin-top: 5px; color: #f1c40f;">AUTHENTICATE (PAT)</button>
-                    <button onclick="setGitRemote()" style="width: 100%; margin-top: 5px; color: #9b59b6;">SET REMOTE</button>
                 </div>
 
                 <div class="toolbar" style="margin-top: 10px;">
@@ -1656,6 +1654,51 @@
                 applySettings(config);
                 closeSettings();
                 term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
+
+                // --- PUSH ALL GIT CONFIGS TO BACKEND SILENTLY ---
+
+                // 1. Push Name & Email
+                if (config.gitName || config.gitEmail) {
+                    fetch('/api/git/config', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: config.gitName, email: config.gitEmail, dir: currentDirectory
+                        })
+                    }).catch(e => console.error(e));
+                }
+
+                // 2. Push Remote URL
+                if (config.repo) {
+                    fetch('/api/git/remote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            url: config.repo, dir: currentDirectory
+                        })
+                    }).then(() => {
+                        term.write(`\r\n\x1b[32m[SYSTEM] Remote origin locked.\x1b[0m\r\n`);
+                    }).catch(e => console.error(e));
+                }
+
+                // 3. Push Authentication Token (The missing piece)
+                if (config.pat) {
+                    fetch('/api/git/auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            token: config.pat, dir: currentDirectory
+                        })
+                    }).then(() => {
+                        term.write(`\r\n\x1b[32m[SYSTEM] Git PAT injected into sector.\x1b[0m\r\n`);
+                    }).catch(e => console.error(e));
+                }
             }
 
             function openSettings() {
@@ -1859,50 +1902,6 @@
                     refreshGitStatus();
                 } catch (e) {
                     term.write(`\r\n\x1b[31m[GIT ERROR] Commit failed: ${e.message}\x1b[0m\r\n`);
-                }
-            }
-
-            async function authenticateGit() {
-                const token = prompt("Enter GitHub Personal Access Token (PAT):");
-                if (!token) return;
-
-                try {
-                    const res = await fetch('/api/git/auth', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            token, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.error) throw new Error(data.error);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Git PAT injected into sector.\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Auth injection failed.\x1b[0m\r\n`);
-                }
-            }
-
-            async function setGitRemote() {
-                const url = prompt("Enter Repository Remote URL:");
-                if (!url) return;
-
-                try {
-                    const res = await fetch('/api/git/remote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            url, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.error) throw new Error(data.error);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Remote origin locked: ${url}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Remote configuration failed.\x1b[0m\r\n`);
                 }
             }
 
