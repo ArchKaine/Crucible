@@ -1390,13 +1390,35 @@
             }
 
             async function gitAction(action, file = '') {
-                await fetch('/api/git/action', {
-                    method: 'POST', headers: {
-                        'Content-Type': 'application/json'
-                    }, body: JSON.stringify({
+                try {
+                    const res = await fetch('/api/git/action', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
                             action, file, dir: currentDirectory
                         })
-                });
+                    });
+
+                    const data = await res.json();
+
+                    if (data.error) {
+                        // Format the native Git error for the xterm display
+                        const cleanError = data.error.trim().replace(/\n/g, '\r\n');
+                        term.write(`\r\n\x1b[31m[GIT ERROR]\r\n${cleanError}\x1b[0m\r\n`);
+                    } else if (data.output) {
+                        // Format standard Git output
+                        const cleanOutput = data.output.trim().replace(/\n/g, '\r\n');
+                        term.write(`\r\n\x1b[90m[GIT]\r\n${cleanOutput}\x1b[0m\r\n`);
+                    } else if (data.success) {
+                        term.write(`\r\n\x1b[32m[GIT] Action '${action}' completed.\x1b[0m\r\n`);
+                    }
+
+                } catch (e) {
+                    term.write(`\r\n\x1b[31m[SYSTEM ERROR] Failed to reach Git API: ${e.message}\x1b[0m\r\n`);
+                }
+
                 refreshGitStatus();
             }
 
