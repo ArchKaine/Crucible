@@ -574,6 +574,49 @@
             padding-top: 15px;
             margin-top: 5px;
         }
+
+        <!-- Suggested by Crucible -->
+
+        /* Add this to your existing CSS */
+        button,
+        .button,
+        a.button {
+            border-radius: 8px;
+            /* Rounded corners for buttons */
+        }
+
+        .modal-content {
+            border-radius: 12px;
+            /* Rounded corners for modal content */
+        }
+
+        .settings-group input[type="number"],
+        .settings-group input[type="text"] {
+            border-radius: 6px;
+            /* Rounded corners for input fields */
+        }
+
+        .toolbar button,
+        .sidebar-tabs button {
+            border-radius: 4px;
+            /* Rounded corners for toolbar and sidebar buttons */
+        }
+
+        .tab {
+            border-radius: 8px 8px 0 0;
+            /* Top rounded corners for tabs */
+        }
+
+        .modal-header h3 {
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+
+        .modal-footer button {
+            border-radius: 6px;
+            /* Rounded corners for modal footer buttons */
+        }
+
     </style>
 </head>
 <body>
@@ -1212,6 +1255,10 @@
                 const session = ace.createEditSession(content, syntaxMode);
                 session.setUseWrapMode(editor.getOption("wrap") !== "off");
 
+                // Initialize the clean state and attach the tracker
+                session.getUndoManager().markClean();
+                session.on('change', () => refreshTabVisuals());
+
                 openTabs[path] = {
                     session,
                     name: fileName
@@ -1225,8 +1272,25 @@
                 const tab = document.createElement('div');
                 tab.className = 'tab';
                 tab.id = `tab-${btoa(path).replace(/=/g, '')}`;
-                tab.innerHTML = `<span onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
+                // Isolate the name in its own span for targeted updates
+                tab.innerHTML = `<span class="tab-name" onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
                 tabBar.appendChild(tab);
+            }
+
+            function refreshTabVisuals() {
+                Object.keys(openTabs).forEach(path => {
+                    const session = openTabs[path].session;
+                    // Check if the current state matches the last save anchor
+                    const isClean = session.getUndoManager().isClean();
+                    const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
+
+                    if (tabElement) {
+                        const nameSpan = tabElement.querySelector('.tab-name');
+                        if (nameSpan) {
+                            nameSpan.innerText = openTabs[path].name + (isClean ? '': ' *');
+                        }
+                    }
+                });
             }
 
             function switchTab(path) {
@@ -1252,7 +1316,6 @@
             }
 
             async function saveFile() {
-
                 // The Pre-Save Formatting Trigger
                 if (autoFormatOnSave) {
                     try {
@@ -1264,13 +1327,22 @@
                 }
 
                 if (!currentOpenPath) return;
+
                 await fetch('/api/write', {
-                    method: 'POST', headers: {
+                    method: 'POST',
+                    headers: {
                         'Content-Type': 'application/json'
-                    }, body: JSON.stringify({
-                            path: currentOpenPath, content: editor.getValue()
-                        })
+                    },
+                    body: JSON.stringify({
+                        path: currentOpenPath, content: editor.getValue()
+                    })
                 });
+
+                // Establish the new clean state anchor
+                const currentSession = openTabs[currentOpenPath].session;
+                currentSession.getUndoManager().markClean();
+                refreshTabVisuals();
+
                 term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
             }
 
@@ -1390,7 +1462,6 @@
             }
 
             async function gitAction(action, file = '') {
-<<<<<<< HEAD
                 try {
                     const res = await fetch('/api/git/action', {
                         method: 'POST',
@@ -1420,15 +1491,6 @@
                     term.write(`\r\n\x1b[31m[SYSTEM ERROR] Failed to reach Git API: ${e.message}\x1b[0m\r\n`);
                 }
 
-=======
-                await fetch('/api/git/action', {
-                    method: 'POST', headers: {
-                        'Content-Type': 'application/json'
-                    }, body: JSON.stringify({
-                            action, file, dir: currentDirectory
-                        })
-                });
->>>>>>> ff84de56486d2f088804bcc964b6c0899ac5362e
                 refreshGitStatus();
             }
 
@@ -1764,6 +1826,12 @@
                                 const content = await res.text();
                                 const fileName = path.split(/[\\/]/).pop();
                                 const session = ace.createEditSession(content, getSyntaxMode(fileName));
+                                session.setUseWrapMode(editor.getOption("wrap") !== "off");
+
+                                // Initialize the clean state and attach the tracker for restored tabs
+                                session.getUndoManager().markClean();
+                                session.on('change', () => refreshTabVisuals());
+
                                 openTabs[path] = {
                                     session,
                                     name: fileName
