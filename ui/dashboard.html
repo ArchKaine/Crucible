@@ -3,624 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Crucible IDE | Industrial Forge</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
-    <style>
-:root {
-        --ui-bg-base: #000000;
-        --ui-bg-panel: #050505;
-        --ui-bg-surface: #0a0a0a;
-        --ui-bg-hover: #111111;
-        --ui-border-dark: #1a1a1a;
-        --ui-border-light: #222222;
-        --ui-text-dim: #444444;
-        --ui-text-muted: #666666;
-        --ui-text-main: #888888;
-        --ui-text-bright: #cccccc;
-        --ui-accent: #569cd6;
-    }
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <link rel="stylesheet" href="ui/style.css">
 
-        body {
-            margin: 0;
-            background: var(--ui-bg-base);
-            color: var(--ui-text-muted);
-            font-family: 'Segoe UI', sans-serif;
-            display: grid;
-            grid-template-areas:
-            'sidebar editor output'
-            'sidebar terminal terminal';
-            grid-template-columns: 280px 1fr 1fr;
-            grid-template-rows: 1fr 350px;
-            height: 100vh;
-            overflow: hidden;
-            transition: grid-template-columns 0.1s ease-out, grid-template-rows 0.1s ease-out;
-        }
-
-        body.dragging {
-            transition: none;
-            user-select: none;
-        }
-        body.dragging .editor-container,
-        body.dragging .output-container,
-        body.dragging .terminal-container {
-            pointer-events: none;
-        }
-
-        .resizer-v {
-            width: 4px;
-            cursor: col-resize;
-            background: var(--ui-bg-hover);
-            z-index: 100;
-            transition: background 0.2s;
-        }
-        .resizer-v:hover, .resizer-v.active {
-            background: var(--ui-text-dim);
-        }
-        #resizer-sb {
-            grid-column: 1;
-            grid-row: 1 / span 2;
-            justify-self: end;
-            margin-right: -2px;
-        }
-        #resizer-ed {
-            grid-column: 2;
-            grid-row: 1;
-            justify-self: end;
-            margin-right: -2px;
-        }
-
-        .resizer-h {
-            height: 4px;
-            cursor: row-resize;
-            background: var(--ui-bg-hover);
-            z-index: 100;
-            grid-column: 2 / span 2;
-            grid-row: 1;
-            align-self: end;
-            margin-bottom: -2px;
-            transition: background 0.2s;
-        }
-        .resizer-h:hover, .resizer-h.active {
-            background: var(--ui-text-dim);
-        }
-
-        .sidebar {
-            grid-area: sidebar;
-            background: var(--ui-bg-surface);
-            border-right: 1px solid var(--ui-border-dark);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .sidebar h3 {
-            font-size: 10px;
-            letter-spacing: 2px;
-            color: var(--ui-text-dim);
-            margin: 0 0 15px 0;
-            text-transform: uppercase;
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 10px;
-        }
-        .toolbar button {
-            flex: 1;
-            padding: 4px;
-            font-size: 10px;
-        }
-
-        #pathUI {
-            background: var(--ui-bg-panel);
-            border: 1px solid var(--ui-bg-hover);
-            margin-bottom: 10px;
-            padding: 5px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        #breadcrumb {
-            display: flex;
-            gap: 5px;
-            font-size: 10px;
-            color: var(--ui-text-dim);
-            flex-wrap: wrap;
-            text-transform: uppercase;
-            cursor: pointer;
-            line-height: 1.4;
-        }
-        #breadcrumb span:hover {
-            color: var(--ui-text-main);
-        }
-        #manualPath {
-            background: var(--ui-bg-base);
-            border: 1px solid var(--ui-border-dark);
-            color: var(--ui-text-muted);
-            font-size: 11px;
-            padding: 4px;
-            outline: none;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        #searchContainer {
-            background: var(--ui-bg-panel);
-            border: 1px solid var(--ui-border-dark);
-            margin-bottom: 10px;
-            padding: 5px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        #searchResults {
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 11px;
-            border-top: 1px solid var(--ui-bg-hover);
-            display: none;
-        }
-        .search-item {
-            padding: 4px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--ui-bg-hover);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .search-item:hover {
-            background: var(--ui-bg-hover);
-            color: var(--ui-text-bright);
-        }
-        .search-meta {
-            font-size: 9px;
-            color: var(--ui-text-dim);
-            margin-right: 5px;
-        }
-
-        #fileList {
-            list-style: none;
-            padding: 0;
-            font-size: 12px;
-            overflow-y: auto;
-            flex-grow: 1;
-            margin: 0;
-            scrollbar-width: thin;
-            scrollbar-color: var(--ui-border-dark) var(--ui-bg-base);
-        }
-
-        #fileList ul {
-            list-style: none;
-            padding-left: 14px;
-            margin: 0;
-            display: none;
-            border-left: 1px solid var(--ui-bg-hover);
-        }
-
-        #fileList ul.expanded {
-            display: block;
-        }
-
-        .fs-item {
-            padding: 4px 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            user-select: none;
-            color: var(--ui-text-main);
-            border-radius: 2px;
-        }
-
-        .fs-item:hover {
-            background: var(--ui-bg-hover);
-            color: var(--ui-text-bright);
-        }
-
-        .caret {
-            width: 12px;
-            text-align: center;
-            font-size: 10px;
-            color: var(--ui-text-dim);
-            transition: transform 0.1s;
-            display: inline-block;
-        }
-
-        .caret.open {
-            transform: rotate(90deg);
-            color: var(--ui-text-main);
-        }
-
-        .item-icon {
-            opacity: 0.6;
-            font-style: normal;
-        }
-
-        .editor-container {
-            grid-area: editor;
-            background: var(--ui-bg-base);
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid var(--ui-border-dark);
-            min-width: 0;
-        }
-
-        .output-container {
-            grid-area: output;
-            background: var(--ui-bg-panel);
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid var(--ui-border-dark);
-            min-width: 0;
-        }
-
-        .controls {
-            background: var(--ui-bg-surface);
-            padding: 10px;
-            display: flex;
-            gap: 10px;
-            border-bottom: 1px solid var(--ui-border-dark);
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        #tabBar {
-            display: flex;
-            background: var(--ui-bg-panel);
-            border-bottom: 1px solid var(--ui-border-dark);
-            overflow-x: auto;
-            scrollbar-width: none;
-        }
-        #tabBar::-webkit-scrollbar {
-            display: none;
-        }
-
-        .tab {
-            padding: 8px 15px;
-            font-size: 11px;
-            color: var(--ui-text-dim);
-            background: var(--ui-bg-surface);
-            border-right: 1px solid var(--ui-border-dark);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            white-space: nowrap;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .tab.active {
-            background: var(--ui-bg-base);
-            color: var(--ui-text-bright);
-            border-bottom: 1px solid var(--ui-accent);
-        }
-        .tab:hover {
-            color: var(--ui-text-main);
-        }
-        .tab-close {
-            font-size: 10px;
-            opacity: 0.3;
-            padding: 2px 5px;
-        }
-        .tab-close:hover {
-            opacity: 1;
-            color: #f44336;
-        }
-
-        #codeEditor, #outputEditor {
-            flex-grow: 1;
-            width: 100%;
-        }
-
-        #statusBar {
-            flex-grow: 1;
-            background: var(--ui-bg-base);
-            height: 26px;
-            border: 1px solid var(--ui-border-dark);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            font-size: 10px;
-            color: var(--ui-text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        #progressFill {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            background: var(--ui-bg-hover);
-            width: 0%;
-            transition: width 0.3s;
-            z-index: 1;
-            border-right: 1px solid var(--ui-border-light);
-        }
-
-        #statusText {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .terminal-container {
-            grid-area: terminal;
-            background: var(--ui-bg-base);
-            border-top: 1px solid var(--ui-border-dark);
-            display: flex;
-            flex-direction: column;
-            padding: 5px;
-            position: relative;
-        }
-
-        #terminalBox {
-            flex-grow: 1;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        input[type="text"] {
-            background: var(--ui-bg-base);
-            border: 1px solid var(--ui-border-light);
-            color: var(--ui-text-main);
-            padding: 6px;
-            outline: none;
-            font-size: 12px;
-        }
-
-        input[type="checkbox"] {
-            accent-color: var(--ui-text-muted);
-            cursor: pointer;
-            margin: 0;
-        }
-
-        button, select {
-            background: var(--ui-bg-hover);
-            color: var(--ui-text-muted);
-            border: 1px solid var(--ui-border-light);
-            padding: 5px 12px;
-            cursor: pointer;
-            font-size: 11px;
-            text-transform: uppercase;
-            outline: none;
-        }
-
-        button:hover, select:hover {
-            background: var(--ui-border-light);
-            color: var(--ui-text-bright);
-            border-color: var(--ui-text-dim);
-        }
-
-        button.active {
-            background: var(--ui-border-light);
-            color: var(--ui-text-bright);
-            border-color: var(--ui-text-dim);
-        }
-
-        .sidebar-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--ui-border-dark);
-            margin: -10px -10px 10px -10px;
-            background: var(--ui-bg-base);
-        }
-        .sidebar-tabs button {
-            flex: 1;
-            background: transparent;
-            border: none;
-            border-right: 1px solid var(--ui-border-dark);
-            border-bottom: 2px solid transparent;
-            padding: 8px 0;
-            color: var(--ui-text-muted);
-            font-size: 10px;
-        }
-        .sidebar-tabs button.active {
-            color: var(--ui-text-bright);
-            border-bottom: 2px solid var(--ui-accent);
-            background: var(--ui-bg-panel);
-        }
-        .sidebar-view {
-            display: none;
-            flex-direction: column;
-            flex-grow: 1;
-            overflow: hidden;
-        }
-        .sidebar-view.active {
-            display: flex;
-        }
-
-        .git-controls input {
-            width: 100%;
-            box-sizing: border-box;
-            background: var(--ui-bg-base);
-            border: 1px solid var(--ui-border-light);
-            color: var(--ui-text-bright);
-            padding: 6px;
-            font-family: inherit;
-            font-size: 11px;
-        }
-        .git-list {
-            flex-grow: 1;
-            overflow-y: auto;
-            font-size: 11px;
-            margin-top: 10px;
-        }
-        .git-header {
-            font-size: 10px;
-            color: var(--ui-text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 10px 0 5px 0;
-            display: flex;
-            justify-content: space-between;
-        }
-        .git-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--ui-bg-hover);
-        }
-        .git-item:hover {
-            background: var(--ui-bg-hover);
-        }
-        .git-status-badge {
-            font-size: 9px;
-            padding: 2px 4px;
-            border-radius: 2px;
-            background: var(--ui-border-light);
-        }
-        .status-M {
-            color: #f1c40f;
-        }
-        .status-A {
-            color: #2ecc71;
-        }
-        .status-D {
-            color: #e74c3c;
-        }
-        .status-U {
-            color: #3498db;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background: var(--ui-bg-surface);
-            border: 1px solid var(--ui-border-light);
-            width: 400px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--ui-border-dark);
-            padding-bottom: 10px;
-        }
-        .modal-header h3 {
-            margin: 0;
-            color: var(--ui-text-bright);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .close-btn {
-            cursor: pointer;
-            color: var(--ui-text-muted);
-            font-size: 14px;
-            background: none;
-            border: none;
-            padding: 0;
-        }
-        .close-btn:hover {
-            color: #f44336;
-        }
-        .settings-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .settings-group label {
-            font-size: 10px;
-            color: var(--ui-text-muted);
-            text-transform: uppercase;
-        }
-        .settings-group select, .settings-group input[type="number"], .settings-group input[type="text"] {
-            background: var(--ui-bg-base);
-            border: 1px solid var(--ui-border-light);
-            color: var(--ui-text-bright);
-            padding: 6px;
-            font-size: 11px;
-            outline: none;
-            font-family: inherit;
-        }
-        .settings-group select:focus, .settings-group input:focus {
-            border-color: var(--ui-text-dim);
-        }
-        .settings-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            border-top: 1px solid var(--ui-border-dark);
-            padding-top: 15px;
-            margin-top: 5px;
-        }
-
-        <!-- Suggested by Crucible -->
-
-        /* Add this to your existing CSS */
-        button,
-        .button,
-        a.button {
-            border-radius: 8px;
-            /* Rounded corners for buttons */
-        }
-
-        .modal-content {
-            border-radius: 12px;
-            /* Rounded corners for modal content */
-        }
-
-        .settings-group input[type="number"],
-        .settings-group input[type="text"] {
-            border-radius: 6px;
-            /* Rounded corners for input fields */
-        }
-
-        .toolbar button,
-        .sidebar-tabs button {
-            border-radius: 4px;
-            /* Rounded corners for toolbar and sidebar buttons */
-        }
-
-        .tab {
-            border-radius: 8px 8px 0 0;
-            /* Top rounded corners for tabs */
-        }
-
-        .modal-header h3 {
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-        }
-
-        .modal-footer button {
-            border-radius: 6px;
-            /* Rounded corners for modal footer buttons */
-        }
-
-    </style>
 </head>
 <body>
-    <!-- === ALL ORIGINAL HTML (unchanged) === -->
     <div class="sidebar" id="mainSidebar">
         <div class="sidebar-tabs">
             <button id="tab-explorer" class="active" onclick="switchSidebar('explorer')">EXPLORER</button>
@@ -629,9 +16,9 @@
 
         <div id="view-explorer" class="sidebar-view active">
             <div class="toolbar">
-                <button onclick="goBack()" title="Back"> < </button>
-                    <button onclick="goForward()" title="Forward"> > </button>
-                    <button onclick="goUp()" title="Parent Directory"> ^ </button>
+                <button onclick="goBack()" title="Back"><</button>
+                    <button onclick="goForward()" title="Forward">></button>
+                    <button onclick="goUp()" title="Parent Directory">^</button>
                     <button onclick="loadTree(currentDirectory)" title="Refresh Tree">⟳</button>
                 </div>
 
@@ -679,21 +66,18 @@
                     <span>REVISION ARCHIVE</span>
                     <button onclick="clearRevisionLog()" title="Purge local temporal logs" style="padding: 2px 5px;">PURGE</button>
                 </div>
-
-                <div id="revisionList" class="git-list">
-                </div>
+                <div id="revisionList" class="git-list"></div>
             </div>
         </div>
 
         <div class="resizer-v" id="resizer-sb"></div>
-        <div class="resizer-v" id="resizer-ed"></div>
-        <div class="resizer-h" id="resizer-tm"></div>
 
-        <div class="editor-container">
+        <div class="editor-container" style="display: flex; flex-direction: column;">
             <div class="controls">
                 <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
                 <button onclick="saveFile()">Save</button>
                 <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
+                <button onclick="shutdownCrucible()" style="color: #e74c3c; border-color: #e74c3c; margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
                 <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
 
                 <div id="statusBar">
@@ -719,10 +103,13 @@
                 <button onclick="toggleSplitView()" id="splitBtn" title="Toggle Dual-Buffer" class="active">◫ SPLIT</button>
                 <button onclick="toggleTerminal()" id="termBtn" title="Toggle Terminal" class="active">🖵 TERM</button>
             </div>
-            <div id="codeEditor"></div>
+
+            <div id="codeEditor" style="flex-grow: 1;"></div>
         </div>
 
-        <div class="output-container">
+        <div class="resizer-v" id="resizer-ed"></div>
+
+        <div class="output-container" style="display: flex; flex-direction: column;">
             <div class="controls">
                 <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
                 <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
@@ -740,83 +127,151 @@
                 <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
             </div>
 
-            <div id="outputEditor"></div>
+            <div id="outputEditor" style="flex-grow: 1;"></div>
             <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
         </div>
 
-        <div class="modal-overlay" id="settingsModal">
-            <div class="modal-content" style="width: 500px;">
-                <div class="modal-header">
-                    <h3>System Preferences</h3>
-                    <button class="close-btn" onclick="closeSettings()">✕</button>
+
+        <div class="modal-overlay" id="settingsModal" style="display: none;">
+            <div class="modal-content settings-modal-content">
+                <div class="settings-header">
+                    <h3 style="margin: 0; color: var(--ui-text-bright); font-size: 14px; letter-spacing: 2px;">⚙️ SYSTEM PREFERENCES</h3>
+                    <button class="close-btn" onclick="closeSettings()" style="background: transparent; border: none; color: var(--ui-text-dim); cursor: pointer;">✕</button>
                 </div>
 
-                <div class="settings-row">
-                    <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                        <label>Editor Theme</label>
-                        <select id="set-theme">
-                            <option value="chaos">Chaos</option>
-                            <option value="industrial">Industrial</option>
-                            <option value="twilight">Twilight</option>
-                            <option value="tomorrow">Tomorrow Night</option>
-                        </select>
+                <div class="settings-body">
+                    <div class="settings-nav">
+                        <button class="settings-tab-btn active" onclick="switchSettingsTab(event, 'pane-general')">Appearance</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'pane-colors')">Color Vectors</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'pane-git')">Git & Auth</button>
                     </div>
-                    <div class="settings-group" style="display: flex; flex-direction: row; align-items: center; gap: 10px; margin-top: 15px; flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                            <input type="checkbox" id="set-wordwrap" checked>
-                            <label style="margin: 0;">Word Wrap</label>
+
+                    <div class="settings-panes">
+                        <div id="pane-general" class="tab-pane active">
+                            <h4 style="color: var(--ui-text-main); margin-top: 0; margin-bottom: 15px;">Core Environment</h4>
+
+                            <div class="settings-row" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                                <div class="settings-group" style="flex: 1;">
+                                    <label>Editor Theme</label>
+                                    <select id="set-theme" onchange="toggleCustomThemeEditor()"></select>
+                                </div>
+                                <div class="settings-group" style="flex: 1;">
+                                    <label>Project Workspace</label>
+                                    <div style="display: flex; gap: 5px;">
+                                        <input type="text" id="set-workspace" placeholder="/home/user/project" style="flex-grow: 1;">
+                                        <button id="browse-btn" onclick="sendToShell('PICK_FOLDER', '')" style="display: none;">Browse</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-row" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                                <div class="settings-group" style="flex: 1;">
+                                    <label>Editor Font Size</label>
+                                    <input type="number" id="set-ed-font" value="14" min="8" max="24">
+                                </div>
+                                <div class="settings-group" style="flex: 1;">
+                                    <label>Terminal Font Size</label>
+                                    <input type="number" id="set-tm-font" value="13" min="8" max="24">
+                                </div>
+                            </div>
+
+                            <div class="settings-row" style="display: flex; flex-direction: row; align-items: center; gap: 15px;">
+                                <div style="display: flex; align-items: center; gap: 5px;">
+                                    <input type="checkbox" id="set-wordwrap" checked>
+                                    <label style="margin: 0;">Word Wrap</label>
+                                </div>
+                            </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                            <label style="margin: 0;">Depth:</label>
-                            <input type="number" id="set-autosave-max" value="5" min="1" max="20" style="width: 45px; padding: 2px 4px;">
+
+                        <div id="pane-colors" class="tab-pane">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="color: var(--ui-text-main); margin: 0;">Custom Theme Engine</h4>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" id="customThemeName" placeholder="Theme Name..." style="padding: 4px 8px; font-size: 11px; width: 120px;">
+                                    <button onclick="saveCustomThemeToDisk()" style="padding: 4px 10px; font-size: 11px; color: #2ecc71; border-color: #2ecc71; background: transparent; cursor: pointer;">Save Preset</button>
+                                </div>
+                            </div>
+
+                            <div id="customThemeEditor" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div class="settings-group">
+                                    <label>Base Core</label><input type="color" id="color-bg-base" value="#000000">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Panel BG</label><input type="color" id="color-bg-panel" value="#050505">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Surface BG</label><input type="color" id="color-bg-surface" value="#0a0a0a">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Hover BG</label><input type="color" id="color-bg-hover" value="#111111">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Dark Border</label><input type="color" id="color-border-dark" value="#1a1a1a">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Light Border</label><input type="color" id="color-border-light" value="#222222">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Dim Text</label><input type="color" id="color-text-dim" value="#444444">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Muted Text</label><input type="color" id="color-text-muted" value="#666666">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Main Text</label><input type="color" id="color-text-main" value="#888888">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Bright Text</label><input type="color" id="color-text-bright" value="#cccccc">
+                                </div>
+                                <div class="settings-group">
+                                    <label>Accent Color</label><input type="color" id="color-accent" value="#569cd6">
+                                </div>
+                            </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                            <label style="margin: 0;">Secs:</label>
-                            <input type="number" id="set-autosave-interval" value="30" min="5" max="600" style="width: 45px; padding: 2px 4px;">
+
+                        <div id="pane-git" class="tab-pane">
+                            <h4 style="color: var(--ui-text-main); margin-top: 0; margin-bottom: 5px;">Repository Credentials</h4>
+                            <p style="color: var(--ui-text-dim); font-size: 11px; margin-top: 0; margin-bottom: 15px;">
+                                Credentials are encrypted in the local vault upon saving.
+                            </p>
+
+                            <div class="settings-group" style="margin-bottom: 10px;">
+                                <label>GitHub PAT (Authentication)</label>
+                                <input type="password" id="set-pat" placeholder="ghp_...">
+                            </div>
+
+                            <div class="settings-group" style="margin-bottom: 15px;">
+                                <label>Target Repository URL (Remote Origin)</label>
+                                <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
+                            </div>
+
+                            <div class="settings-row" style="display: flex; gap: 10px;">
+                                <div class="settings-group" style="flex: 1;">
+                                    <label>Git Author Name</label>
+                                    <input type="text" id="set-git-name" placeholder="John Doe">
+                                </div>
+                                <div class="settings-group" style="flex: 1;">
+                                    <label>Git Author Email</label>
+                                    <input type="text" id="set-git-email" placeholder="john@example.com">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-row">
-                    <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                        <label>Editor Font Size</label>
-                        <input type="number" id="set-ed-font" value="14" min="8" max="24">
-                    </div>
-                    <div class="settings-group" style="flex: 1;">
-                        <label>Terminal Font Size</label>
-                        <input type="number" id="set-tm-font" value="13" min="8" max="24">
-                    </div>
-                </div>
-
-                <hr style="border: 0; border-top: 1px solid #1a1a1a; margin: 10px 0; width: 100%;">
-
-                <div class="settings-group">
-                    <label>GitHub PAT (Authentication)</label>
-                    <input type="password" id="set-pat" placeholder="ghp_...">
-                </div>
-
-                <div class="settings-group">
-                    <label>Target Repository URL (Remote Origin)</label>
-                    <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
-                </div>
-
-                <div class="settings-row">
-                    <div class="settings-group" style="flex: 1; margin-right: 10px;">
-                        <label>Git Author Name</label>
-                        <input type="text" id="set-git-name" placeholder="John Doe">
-                    </div>
-                    <div class="settings-group" style="flex: 1;">
-                        <label>Git Author Email</label>
-                        <input type="text" id="set-git-email" placeholder="john@example.com">
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button onclick="closeSettings()" style="background: transparent; border: 1px solid #222;">Cancel</button>
-                    <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71;">Save Changes</button>
+                <div class="settings-footer">
+                    <button onclick="closeSettings()" style="background: transparent; border: 1px solid var(--ui-border-dark); color: var(--ui-text-main); cursor: pointer; padding: 6px 12px;">Cancel</button>
+                    <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71; background: transparent; font-weight: bold; cursor: pointer; padding: 6px 12px;">Save Changes</button>
                 </div>
             </div>
         </div>
+
+        <script>
+            if (typeof isShell !== 'undefined' && isShell) {
+                const btn = document.getElementById('browse-btn');
+                if (btn) btn.style.display = 'block';
+            }
+        </script>
 
         <div class="terminal-container">
             <div id="terminalBox"></div>
@@ -828,1295 +283,18 @@
         <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
 
-        <script>
-            // --- GLOBAL CORE STATE ---
-            let currentOpenPath = '', currentDirectory = '';
-            let openTabs = {};
-            let navHistory = [], navIndex = -1;
-            let aiCmdHistory = [];
-            let aiCmdIndex = -1;
-            let isPreviewActive = false;
-            let previewTimeout;
-            let previewBgState = 0;
-            let autoFormatOnSave = true;
-
-            const getSyntaxMode = (fileName) => {
-                const ext = fileName.split('.').pop().toLowerCase();
-                const modeMap = {
-                    'js': 'javascript',
-                    'cs': 'csharp',
-                    'html': 'html',
-                    'css': 'css',
-                    'json': 'json',
-                    'md': 'markdown',
-                    'sh': 'sh'
-                };
-                return `ace/mode/${modeMap[ext] || 'text'}`;
-            };
-
-            const themeMap = {
-                chaos: {
-                    ace: "ace/theme/chaos",
-                    term: {
-                        background: '#000000',
-                        foreground: '#888888',
-                        cursor: '#569cd6',
-                        selection: '#222222'
-                    },
-                    ui: {
-                        base: '#000000',
-                        panel: '#050505',
-                        surface: '#0a0a0a',
-                        hover: '#111111',
-                        borderDark: '#1a1a1a',
-                        borderLight: '#222222',
-                        textDim: '#444444',
-                        textMuted: '#666666',
-                        textMain: '#888888',
-                        textBright: '#cccccc',
-                        accent: '#569cd6'
-                    }},
-                industrial: {
-                    ace: "ace/theme/mono_industrial",
-                    term: {
-                        background: '#0a0a0a',
-                        foreground: '#777777',
-                        cursor: '#444444',
-                        selection: '#1a1a1a'
-                    },
-                    ui: {
-                        base: '#0a0a0a',
-                        panel: '#111111',
-                        surface: '#1a1a1a',
-                        hover: '#222222',
-                        borderDark: '#333333',
-                        borderLight: '#444444',
-                        textDim: '#666666',
-                        textMuted: '#888888',
-                        textMain: '#aaaaaa',
-                        textBright: '#dddddd',
-                        accent: '#ff9800'
-                    }},
-                twilight: {
-                    ace: "ace/theme/twilight",
-                    term: {
-                        background: '#141414',
-                        foreground: '#f8f8f8',
-                        cursor: '#8f9d6a',
-                        selection: '#323232'
-                    },
-                    ui: {
-                        base: '#141414',
-                        panel: '#1e1e1e',
-                        surface: '#252525',
-                        hover: '#2f2f2f',
-                        borderDark: '#3a3a3a',
-                        borderLight: '#4a4a4a',
-                        textDim: '#777777',
-                        textMuted: '#999999',
-                        textMain: '#bbbbbb',
-                        textBright: '#eeeeee',
-                        accent: '#8f9d6a'
-                    }},
-                tomorrow: {
-                    ace: "ace/theme/tomorrow_night_eighties",
-                    term: {
-                        background: '#2d2d2d',
-                        foreground: '#cccccc',
-                        cursor: '#6699cc',
-                        selection: '#515151'
-                    },
-                    ui: {
-                        base: '#2d2d2d',
-                        panel: '#363636',
-                        surface: '#3f3f3f',
-                        hover: '#4a4a4a',
-                        borderDark: '#555555',
-                        borderLight: '#666666',
-                        textDim: '#888888',
-                        textMuted: '#aaaaaa',
-                        textMain: '#cccccc',
-                        textBright: '#eeeeee',
-                        accent: '#6699cc'
-                    }}
-            };
-
-            ace.require("ace/ext/language_tools");
-            const editor = ace.edit("codeEditor");
-            const outputEditor = ace.edit("outputEditor");
-
-            [editor, outputEditor].forEach(ed => {
-                ed.setTheme(themeMap.chaos.ace);
-                ed.setFontSize(14);
-                ed.setOptions({
-                    fixedWidthGutter: true,
-                    enableBasicAutocompletion: true,
-                    enableSnippets: true,
-                    enableLiveAutocompletion: true,
-                    wrap: "free"
-                });
-            });
-
-            editor.session.setMode("ace/mode/csharp");
-
-            const term = new Terminal({
-                theme: themeMap.chaos.term,
-                fontFamily: 'Consolas, "Courier New", monospace',
-                fontSize: 13,
-                cursorBlink: true,
-                allowProposedApi: true
-            });
-            const fitAddon = new FitAddon.FitAddon();
-            term.loadAddon(fitAddon);
-            term.open(document.getElementById('terminalBox'));
-            fitAddon.fit();
-
-            const socket = new WebSocket(`ws://${window.location.host}`);
-
-            socket.onopen = () => {
-                term.write('\x1b[34m[CRUCIBLE BASH LINK ACTIVE]\x1b[0m\r\n');
-                sendResize();
-            };
-
-            socket.onmessage = async (ev) => {
-                let rawData = ev.data;
-                if (rawData instanceof Blob) rawData = await rawData.text();
-                try {
-                    const msg = JSON.parse(rawData);
-                    if (msg.type === 'progress') {
-                        document.getElementById('progressFill').style.width = msg.data.percent + '%';
-                        document.getElementById('coreStatus').innerText = `${msg.data.percent === 100 ? 'SUCCESS': 'SYNCING'}: ${msg.data.file}`;
-                        document.getElementById('corePercent').innerText = msg.data.percent + '%';
-                    }
-                } catch (e) {
-                    term.write(rawData);
-                }
-            };
-
-            term.onData(data => {
-                if (socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({
-                        type: 'input', data: data
-                    }));
-                }
-            });
-
-            function sendResize() {
-                if (socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({
-                        type: 'resize', cols: term.cols, rows: term.rows
-                    }));
-                }
-            }
-
-            window.onresize = () => {
-                fitAddon.fit();
-                sendResize();
-            };
-
-            function initResizers() {
-                const body = document.body;
-                const saved = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-                body.style.gridTemplateColumns = saved.cols;
-                body.style.gridTemplateRows = saved.rows;
-
-                const startDragging = (id, type) => {
-                    const resizer = document.getElementById(id);
-                    resizer.onmousedown = (e) => {
-                        body.classList.add('dragging');
-                        resizer.classList.add('active');
-
-                        document.onmousemove = (moveE) => {
-                            const cols = body.style.gridTemplateColumns.split(' ');
-                            const rows = body.style.gridTemplateRows.split(' ');
-
-                            if (type === 'sidebar') {
-                                cols[0] = Math.max(40, moveE.clientX) + 'px';
-                            } else if (type === 'editor') {
-                                const sidebarW = parseInt(cols[0]);
-                                cols[1] = Math.max(50, moveE.clientX - sidebarW) + 'px';
-                            } else if (type === 'terminal') {
-                                rows[1] = Math.max(50, window.innerHeight - moveE.clientY) + 'px';
-                            }
-
-                            body.style.gridTemplateColumns = cols.join(' ');
-                            body.style.gridTemplateRows = rows.join(' ');
-                            [editor,
-                                outputEditor].forEach(ed => ed.resize());
-                            fitAddon.fit();
-                        };
-
-                        document.onmouseup = () => {
-                            body.classList.remove('dragging');
-                            resizer.classList.remove('active');
-                            document.onmousemove = null;
-                            document.onmouseup = null;
-                            localStorage.setItem('crucible-layout', JSON.stringify({
-                                cols: body.style.gridTemplateColumns,
-                                rows: body.style.gridTemplateRows
-                            }));
-                        };
-                    };
-                };
-
-                startDragging('resizer-sb', 'sidebar');
-                startDragging('resizer-ed', 'editor');
-                startDragging('resizer-tm', 'terminal');
-            }
-
-            // Add this function to handle the UI toggle
-            function toggleAutoFormat() {
-                autoFormatOnSave = !autoFormatOnSave;
-                const btn = document.getElementById('formatToggle');
-
-                if (autoFormatOnSave) {
-                    btn.classList.add('active');
-                    btn.style.color = '#2ecc71'; // Green to show it's armed
-                    term.write(`\r\n\x1b[32m[SYSTEM] Auto-Format on Save ENABLED.\x1b[0m\r\n`);
-                } else {
-                    btn.classList.remove('active');
-                    btn.style.color = 'var(--ui-text-muted)';
-                    term.write(`\r\n\x1b[90m[SYSTEM] Auto-Format on Save DISABLED.\x1b[0m\r\n`);
-                }
-            }
-
-            async function runGlobalSearch() {
-                const query = document.getElementById('globalSearchInput').value;
-                const resultsBox = document.getElementById('searchResults');
-                if (!query) {
-                    resultsBox.style.display = 'none'; return;
-                }
-                resultsBox.innerHTML = '<div class="search-item">Scanning Forge...</div>';
-                resultsBox.style.display = 'block';
-                try {
-                    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&dir=${encodeURIComponent(currentDirectory)}`);
-                    const data = await res.json();
-                    resultsBox.innerHTML = '';
-                    if (data.length === 0) {
-                        resultsBox.innerHTML = '<div class="search-item">No matches in current sector.</div>';
-                    } else {
-                        data.forEach(match => {
-                            const item = document.createElement('div');
-                            item.className = 'search-item';
-                            const fileName = match.path.split(/[\\/]/).pop();
-                            item.innerHTML = `<span class="search-meta">${fileName}:${match.line}</span> ${match.text}`;
-                            item.onclick = () => {
-                                openFile(match.path).then(() => {
-                                    editor.gotoLine(match.line, 0, true); editor.focus();
-                                });
-                            };
-                            resultsBox.appendChild(item);
-                        });
-                    }
-                } catch(e) {
-                    resultsBox.innerHTML = '<div class="search-item">Search failed.</div>';
-                }
-            }
-
-            async function loadTree(dir = '', parentElement = null, skipHistory = false) {
-                try {
-                    const res = await fetch(`/api/files?dir=${encodeURIComponent(dir)}`);
-                    const data = await res.json();
-                    if (!parentElement) {
-                        currentDirectory = data.currentDir;
-                        document.getElementById('manualPath').value = currentDirectory;
-                        updateBreadcrumbs(currentDirectory);
-                        if (!skipHistory) {
-                            if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
-                            navHistory.push(currentDirectory);
-                            navIndex++;
-                        }
-                        saveWorkspaceState();
-                        parentElement = document.getElementById('fileList');
-                        parentElement.innerHTML = '';
-                    }
-                    const ul = document.createElement('ul');
-                    ul.classList.add('expanded');
-                    data.entries.forEach(e => {
-                        const li = document.createElement('li');
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'fs-item';
-                        if (e.isDirectory) {
-                            itemDiv.innerHTML = `<span class="caret">▶</span> <span class="item-icon">📁</span> ${e.name}`;
-                            itemDiv.onclick = (ev) => {
-                                ev.stopPropagation();
-                                const childUl = li.querySelector('ul');
-                                if (childUl) {
-                                    childUl.classList.toggle('expanded');
-                                    itemDiv.querySelector('.caret').classList.toggle('open');
-                                } else {
-                                    itemDiv.querySelector('.caret').classList.add('open');
-                                    loadTree(e.path, li, true);
-                                }
-                            };
-                            itemDiv.ondblclick = (ev) => {
-                                ev.stopPropagation(); loadTree(e.path);
-                            };
-                        } else {
-                            itemDiv.innerHTML = `<span style="width:12px; display:inline-block;"></span><input type="checkbox" class="context-cb" value="${e.path}" onclick="event.stopPropagation()"> <span class="item-icon">📄</span> ${e.name}`;
-                            itemDiv.onclick = (ev) => {
-                                ev.stopPropagation(); openFile(e.path);
-                            };
-                        }
-                        li.appendChild(itemDiv);
-                        ul.appendChild(li);
-                    });
-                    parentElement.appendChild(ul);
-                } catch(e) {
-                    console.error("Failed to load tree",
-                        e);
-                }
-            }
-
-            function updateBreadcrumbs(dir) {
-                const bc = document.getElementById('breadcrumb');
-                bc.innerHTML = '';
-                const parts = dir.split(/[\\/]/).filter(p => p);
-                const rootSpan = document.createElement('span');
-                rootSpan.innerText = 'ROOT / ';
-                rootSpan.onclick = () => loadTree('/');
-                bc.appendChild(rootSpan);
-                let runningPath = '';
-                parts.forEach((p, i) => {
-                    runningPath += '/' + p;
-                    const s = document.createElement('span');
-                    s.innerText = p + (i < parts.length - 1 ? ' / ': '');
-                    const target = runningPath;
-                    s.onclick = () => loadTree(target);
-                    bc.appendChild(s);
-                });
-            }
-
-            function updateSystemStatus(percent, message, isError = false) {
-                const fill = document.getElementById('progressFill');
-                const status = document.getElementById('coreStatus');
-                const corePct = document.getElementById('corePercent');
-
-                fill.style.width = `${percent}%`;
-                fill.style.backgroundColor = isError ? '#f44336': 'var(--ui-bg-hover)';
-                status.innerText = message.toUpperCase();
-                corePct.innerText = `${percent}%`;
-
-                if (percent === 100) {
-                    setTimeout(() => {
-                        fill.style.width = '0%';
-                    }, 2000);
-                }
-            }
-
-            async function runAutomatedTests() {
-                updateSystemStatus(10, "Initializing Test Suite...");
-                try {
-                    const res = await fetch('/api/test', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            dir: currentDirectory, context: currentOpenPath
-                        })
-                    });
-                    const result = await res.json();
-
-                    updateSystemStatus(100, result.passed ? "Tests Passed": "Tests Failed", !result.passed);
-                    term.write(`\r\n\x1b[${result.passed ? '32': '31'}m[TEST RESULT] ${result.summary}\x1b[0m\r\n`);
-                } catch (e) {
-                    updateSystemStatus(0, "Test Error", true);
-                }
-            }
-
-            function goBack() {
-                if (navIndex > 0) {
-                    navIndex--; loadTree(navHistory[navIndex], null, true);
-                }
-            }
-            function goForward() {
-                if (navIndex < navHistory.length - 1) {
-                    navIndex++; loadTree(navHistory[navIndex], null, true);
-                }
-            }
-            function goUp() {
-                const parent = currentDirectory.split(/[\\/]/).slice(0, -1).join('/') || '/'; loadTree(parent);
-            }
-
-            async function openFile(path) {
-                const fileName = path.split(/[\\/]/).pop();
-                if (openTabs[path]) {
-                    switchTab(path); return;
-                }
-
-                const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
-                const content = await res.text();
-
-                const syntaxMode = getSyntaxMode(fileName);
-                const session = ace.createEditSession(content, syntaxMode);
-                session.setUseWrapMode(editor.getOption("wrap") !== "off");
-
-                // Initialize the clean state and attach the tracker
-                session.getUndoManager().markClean();
-                session.on('change', () => refreshTabVisuals());
-
-                openTabs[path] = {
-                    session,
-                    name: fileName
-                };
-                createTabUI(path, fileName);
-                switchTab(path);
-            }
-
-            function createTabUI(path, name) {
-                const tabBar = document.getElementById('tabBar');
-                const tab = document.createElement('div');
-                tab.className = 'tab';
-                tab.id = `tab-${btoa(path).replace(/=/g, '')}`;
-                // Isolate the name in its own span for targeted updates
-                tab.innerHTML = `<span class="tab-name" onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
-                tabBar.appendChild(tab);
-            }
-
-            function refreshTabVisuals() {
-                Object.keys(openTabs).forEach(path => {
-                    const session = openTabs[path].session;
-                    // Check if the current state matches the last save anchor
-                    const isClean = session.getUndoManager().isClean();
-                    const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
-
-                    if (tabElement) {
-                        const nameSpan = tabElement.querySelector('.tab-name');
-                        if (nameSpan) {
-                            nameSpan.innerText = openTabs[path].name + (isClean ? '': ' *');
-                        }
-                    }
-                });
-            }
-
-            function switchTab(path) {
-                currentOpenPath = path;
-                editor.setSession(openTabs[path].session);
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
-                if (activeTab) activeTab.classList.add('active');
-                editor.focus();
-                saveWorkspaceState();
-            }
-
-            function closeTab(path) {
-                const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
-                if (tabElement) tabElement.remove();
-                delete openTabs[path];
-                const remaining = Object.keys(openTabs);
-                if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
-                else {
-                    currentOpenPath = ''; editor.setValue('', -1);
-                }
-                saveWorkspaceState();
-            }
-
-            async function saveFile() {
-                // The Pre-Save Formatting Trigger
-                if (autoFormatOnSave) {
-                    try {
-                        const beautify = ace.require("ace/ext/beautify");
-                        beautify.beautify(editor.session);
-                    } catch (e) {
-                        term.write(`\r\n\x1b[31m[ERROR] Formatter failed to parse syntax.\x1b[0m\r\n`);
-                    }
-                }
-
-                if (!currentOpenPath) return;
-
-                await fetch('/api/write', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        path: currentOpenPath, content: editor.getValue()
-                    })
-                });
-
-                // Establish the new clean state anchor
-                const currentSession = openTabs[currentOpenPath].session;
-                currentSession.getUndoManager().markClean();
-                refreshTabVisuals();
-
-                term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
-            }
-
-            function switchSidebar(viewName) {
-                const views = document.querySelectorAll('.sidebar-view');
-                const tabs = document.querySelectorAll('.sidebar-tabs button');
-
-                views.forEach(v => v.classList.remove('active'));
-                tabs.forEach(b => b.classList.remove('active'));
-
-                const targetView = document.getElementById(`view-${viewName}`);
-                const targetTab = document.getElementById(`tab-${viewName}`);
-
-                if (targetView && targetTab) {
-                    targetView.classList.add('active');
-                    targetTab.classList.add('active');
-                } else {
-                    document.getElementById('view-explorer')?.classList.add('active');
-                    document.getElementById('tab-explorer')?.classList.add('active');
-                    return;
-                }
-
-                if (viewName === 'git') {
-                    if (typeof refreshGitStatus === 'function') refreshGitStatus();
-                }
-            }
-
-            // --- IDE ACTION CONTROLS ---
-
-            // 1. Manual Formatting Trigger
-            async function triggerManualFormat() {
-                const beautify = ace.require("ace/ext/beautify");
-                if (beautify) {
-                    beautify.beautify(editor.session);
-                    term.write('\r\n\x1b[32m[SYSTEM] Active document formatted.\x1b[0m\r\n');
-                } else {
-                    term.write('\r\n\x1b[31m[ERROR] Formatter engine not loaded.\x1b[0m\r\n');
-                }
-            }
-
-            // 2. Spatial Layout: Split View Toggle
-            let splitViewActive = true;
-            function toggleSplitView() {
-                const body = document.body;
-                const btn = document.getElementById('splitBtn');
-                splitViewActive = !splitViewActive;
-
-                if (splitViewActive) {
-                    // Restore from localStorage or default
-                    const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-                    body.style.gridTemplateColumns = savedLayout.cols;
-                    btn.classList.add('active');
-                    term.write('\r\n\x1b[90m[SYSTEM] Dual-buffer active.\x1b[0m\r\n');
-                } else {
-                    // Collapse right panel (Output Container)
-                    const currentCols = body.style.gridTemplateColumns.split(' ');
-                    body.style.gridTemplateColumns = `${currentCols[0]} 1fr 0px`;
-                    btn.classList.remove('active');
-                    term.write('\r\n\x1b[90m[SYSTEM] Single editor mode active.\x1b[0m\r\n');
-                }
-
-                setTimeout(() => {
-                    editor.resize(); outputEditor.resize(); fitAddon.fit();
-                }, 150);
-            }
-
-            // 3. Spatial Layout: Terminal Toggle
-            let terminalActive = true;
-            function toggleTerminal() {
-                const body = document.body;
-                const btn = document.getElementById('termBtn');
-                terminalActive = !terminalActive;
-
-                if (terminalActive) {
-                    const savedLayout = JSON.parse(localStorage.getItem('crucible-layout') || '{"cols":"280px 1fr 1fr", "rows":"1fr 350px"}');
-                    body.style.gridTemplateRows = savedLayout.rows;
-                    btn.classList.add('active');
-                } else {
-                    body.style.gridTemplateRows = "1fr 0px";
-                    btn.classList.remove('active');
-                }
-
-                setTimeout(() => {
-                    editor.resize(); outputEditor.resize(); fitAddon.fit();
-                }, 150);
-            }
-
-            async function refreshGitStatus() {
-                const list = document.getElementById('gitStatusList');
-                list.innerHTML = '<div style="color: #555; font-size: 10px;">SCANNING...</div>';
-                try {
-                    const res = await fetch(`/api/git/status?dir=${encodeURIComponent(currentDirectory)}`);
-                    const data = await res.json();
-                    list.innerHTML = '';
-                    if (data.staged.length > 0) {
-                        list.innerHTML += `<div class="git-header"><span>STAGED</span></div>`;
-                        data.staged.forEach(item => list.appendChild(createGitItem(item, true)));
-                    }
-                    if (data.unstaged.length > 0) {
-                        list.innerHTML += `<div class="git-header"><span>CHANGES</span> <button onclick="gitAction('add-all')">+</button></div>`;
-                        data.unstaged.forEach(item => list.appendChild(createGitItem(item, false)));
-                    }
-                    if (data.staged.length === 0 && data.unstaged.length === 0) list.innerHTML = '<div style="color: #444; padding: 10px;">CLEAN</div>';
-                } catch (err) {
-                    list.innerHTML = `<div style="color: #e74c3c;">GIT OFFLINE</div>`;
-                }
-            }
-
-            function createGitItem(item, isStaged) {
-                const div = document.createElement('div');
-                div.className = 'git-item';
-                const action = isStaged ? 'unstage': 'stage';
-                div.innerHTML = `<span onclick="openFile('${item.file}')" style="flex-grow:1;">${item.file.split('/').pop()}</span>
-                <span class="git-status-badge status-${item.status}">${item.status}</span>
-                <button onclick="gitAction('${action}', '${item.file}')">${isStaged ? '-': '+'}</button>`;
-                return div;
-            }
-
-            async function gitAction(action, file = '') {
-                try {
-                    const res = await fetch('/api/git/action', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action, file, dir: currentDirectory
-                        })
-                    });
-
-                    const data = await res.json();
-
-                    if (data.error) {
-                        // Format the native Git error for the xterm display
-                        const cleanError = data.error.trim().replace(/\n/g, '\r\n');
-                        term.write(`\r\n\x1b[31m[GIT ERROR]\r\n${cleanError}\x1b[0m\r\n`);
-                    } else if (data.output) {
-                        // Format standard Git output
-                        const cleanOutput = data.output.trim().replace(/\n/g, '\r\n');
-                        term.write(`\r\n\x1b[90m[GIT]\r\n${cleanOutput}\x1b[0m\r\n`);
-                    } else if (data.success) {
-                        term.write(`\r\n\x1b[32m[GIT] Action '${action}' completed.\x1b[0m\r\n`);
-                    }
-
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[SYSTEM ERROR] Failed to reach Git API: ${e.message}\x1b[0m\r\n`);
-                }
-
-                refreshGitStatus();
-            }
-
-            async function createBranch() {
-                const branchName = prompt("ENTER NEW FEATURE BRANCH NAME:");
-                if (!branchName) return;
-
-                try {
-                    await gitAction('checkout', {
-                        branch: branchName, create: true
-                    });
-                    term.write(`\r\n\x1b[32m[GIT] SWITCHED TO NEW SECTOR: ${branchName}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[GIT ERR] BRANCH ALLOCATION FAILED.\x1b[0m\r\n`);
-                }
-            }
-
-            async function mergeBranch() {
-                const target = prompt("MERGE WHICH BRANCH INTO CURRENT?");
-                if (!target) return;
-
-                term.write(`\r\n\x1b[33m[SYSTEM] INITIATING CONFLICT DETECTION...\x1b[0m\r\n`);
-                try {
-                    const res = await fetch('/api/git/action', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'merge', target, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-
-                    if (data.conflicts) {
-                        term.write(`\r\n\x1b[31m[CONFLICT] AUTOMATIC RESOLUTION FAILED. MANUAL INTERVENTION REQUIRED.\x1b[0m\r\n`);
-                    } else {
-                        term.write(`\r\n\x1b[32m[SUCCESS] SECTOR MERGED SUCCESSFULLY.\x1b[0m\r\n`);
-                    }
-                    refreshGitStatus();
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] MERGE HANDSHAKE TIMED OUT.\x1b[0m\r\n`);
-                }
-            }
-
-            async function askAI() {
-                const input = document.getElementById('aiInput');
-                const directive = input.value.trim();
-                if (!directive) return;
-
-                const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
-                input.value = 'PROCESSING...';
-
-                try {
-                    console.log("PROMPT SENT TO AI:", `Context: ${contextFiles}\nDirective: ${directive}\nBuffer:\n${editor.getValue()}`);
-                    const res = await fetch('http://localhost:3001/api/ai', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            history: [{
-                                role: "user",
-                                content: `INSTRUCTIONS: ${directive}\n\nFILE CONTEXT LIST: ${contextFiles.join(', ')}\n\nCURRENT BUFFER CONTENT:\n${editor.getValue()}`
-                            }]
-                        })
-                    });
-
-                    if (!res.ok) {
-                        const errBody = await res.text();
-                        throw new Error(`Server ${res.status}: ${errBody}`);
-                    }
-
-                    const data = await res.json();
-
-                    if (data.choices && data.choices[0] && data.choices[0].message) {
-                        let rawContent = data.choices[0].message.content;
-
-                        const cleanedCode = rawContent
-                        .replace(/^``````$/i, '')
-                        .trim();
-
-                        outputEditor.setValue(cleanedCode, -1);
-                        term.write(`\r\n\x1b[32m[SUCCESS] AI logic loaded to output buffer.\x1b[0m\r\n`);
-                    } else {
-                        throw new Error("Malformed API response structure.");
-                    }
-
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] AI Handshake Failed: ${e.message}\x1b[0m\r\n`);
-                    console.error("Full AI Error:", e);
-                } finally {
-                    input.value = '';
-                }
-            }
-
-            async function runShadowTest() {
-                if (!currentOpenPath) return;
-                const content = outputEditor.getValue();
-                const ext = currentOpenPath.split('.').pop().toLowerCase();
-                const ind = document.getElementById('shadowStatus');
-                const statusText = document.getElementById('coreStatus');
-
-                statusText.innerText = `LINTING ${ext.toUpperCase()}...`;
-                ind.style.backgroundColor = '#f1c40f';
-
-                if (ext === 'html' || ext === 'js') {
-                    const isValid = validateWebCode(content, ext);
-                    if (!isValid.success) {
-                        statusText.innerText = isValid.error;
-                        ind.style.backgroundColor = '#f44336';
-                        return;
-                    }
-                }
-
-                try {
-                    const res = await fetch('/api/shadow-test', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path: currentOpenPath, content: content
-                        })
-                    });
-                    const result = await res.json();
-
-                    if (result.error) {
-                        statusText.innerText = "LINT ERROR";
-                        ind.style.backgroundColor = '#f44336';
-                    } else {
-                        statusText.innerText = "LINT PASSED";
-                        ind.style.backgroundColor = '#2ecc71';
-                    }
-                } catch (e) {
-                    statusText.innerText = "LINT TIMEOUT";
-                    ind.style.backgroundColor = '#f44336';
-                }
-            }
-
-            function validateWebCode(content, type) {
-                if (type === 'html') {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(content, "text/html");
-                    const errors = doc.querySelectorAll("parsererror");
-                    return errors.length > 0 ?
-                    {
-                        success: false,
-                        error: "Malformed HTML Structure"
-                    }:
-                    {
-                        success: true
-                    };
-                }
-
-                if (type === 'js') {
-                    try {
-                        new Function(content);
-                        return {
-                            success: true
-                        };
-                    } catch (e) {
-                        return {
-                            success: false,
-                            error: `JS Syntax: ${e.message}`
-                        };
-                    }
-                }
-                return {
-                    success: true
-                };
-            }
-
-            function applyDiffMerge() {
-                if (outputEditor.getValue().length < editor.getValue().length * 0.7) {
-                    if (!confirm("AI output is significantly shorter. Potential gutting detected. Proceed?")) return;
-                }
-                editor.setValue(outputEditor.getValue(), -1);
-                term.write(`\r\n\x1b[34m[SYSTEM] Merge applied.\x1b[0m\r\n`);
-            }
-
-            function toggleWrap() {
-                const wrapping = editor.getOption("wrap") === "off";
-                [editor,
-                    outputEditor].forEach(ed => ed.setOption("wrap", wrapping ? "free": "off"));
-                document.getElementById('wrapToggle').classList.toggle('active', wrapping);
-                Object.values(openTabs).forEach(tab => tab.session.setUseWrapMode(wrapping));
-            }
-
-            function applySettings(config) {
-                const t = themeMap[config.theme] || themeMap.chaos;
-
-                const root = document.documentElement;
-                if (t.ui) {
-                    root.style.setProperty('--ui-bg-base', t.ui.base);
-                    root.style.setProperty('--ui-bg-panel', t.ui.panel);
-                    root.style.setProperty('--ui-bg-surface', t.ui.surface);
-                    root.style.setProperty('--ui-bg-hover', t.ui.hover);
-                    root.style.setProperty('--ui-border-dark', t.ui.borderDark);
-                    root.style.setProperty('--ui-border-light', t.ui.borderLight);
-                    root.style.setProperty('--ui-text-dim', t.ui.textDim);
-                    root.style.setProperty('--ui-text-muted', t.ui.textMuted);
-                    root.style.setProperty('--ui-text-main', t.ui.textMain);
-                    root.style.setProperty('--ui-text-bright', t.ui.textBright);
-                    root.style.setProperty('--ui-accent', t.ui.accent);
-                }
-
-                [editor,
-                    outputEditor].forEach(ed => {
-                        ed.setTheme(t.ace);
-                        ed.setFontSize(parseInt(config.edFont) || 14);
-                    });
-                term.options.theme = Object.assign({}, t.term);
-                term.options.fontSize = parseInt(config.tmFont) || 13;
-                fitAddon.fit();
-
-                term.write(`\r\n\x1b[90m[SYSTEM] Forge Settings Applied.\x1b[0m\r\n`);
-            }
-
-            function loadSettings() {
-                const defaults = {
-                    theme: 'chaos',
-                    edFont: 14,
-                    tmFont: 13,
-                    pat: '',
-                    repo: '',
-                    gitName: '',
-                    gitEmail: ''
-                };
-
-                const saved = JSON.parse(localStorage.getItem('crucible-settings')) || defaults;
-                applySettings(saved);
-
-                document.getElementById('set-theme').value = saved.theme;
-                document.getElementById('set-ed-font').value = saved.edFont;
-                document.getElementById('set-tm-font').value = saved.tmFont;
-                document.getElementById('set-pat').value = saved.pat || '';
-                document.getElementById('set-repo').value = saved.repo || '';
-                document.getElementById('set-git-name').value = saved.gitName || '';
-                document.getElementById('set-git-email').value = saved.gitEmail || '';
-            }
-
-            function saveSettings() {
-                const config = {
-                    theme: document.getElementById('set-theme').value,
-                    edFont: document.getElementById('set-ed-font').value,
-                    tmFont: document.getElementById('set-tm-font').value,
-                    pat: document.getElementById('set-pat').value,
-                    repo: document.getElementById('set-repo').value,
-                    gitName: document.getElementById('set-git-name').value,
-                    gitEmail: document.getElementById('set-git-email').value
-                };
-
-                localStorage.setItem('crucible-settings', JSON.stringify(config));
-                applySettings(config);
-                closeSettings();
-                term.write('\r\n\x1b[32m[SYSTEM] Preferences Updated.\x1b[0m\r\n');
-
-                // --- PUSH ALL GIT CONFIGS TO BACKEND SILENTLY ---
-
-                // 1. Push Name & Email
-                if (config.gitName || config.gitEmail) {
-                    fetch('/api/git/config', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            name: config.gitName, email: config.gitEmail, dir: currentDirectory
-                        })
-                    }).catch(e => console.error(e));
-                }
-
-                // 2. Push Remote URL
-                if (config.repo) {
-                    fetch('/api/git/remote', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            url: config.repo, dir: currentDirectory
-                        })
-                    }).then(() => {
-                        term.write(`\r\n\x1b[32m[SYSTEM] Remote origin locked.\x1b[0m\r\n`);
-                    }).catch(e => console.error(e));
-                }
-
-                // 3. Push Authentication Token (The missing piece)
-                if (config.pat) {
-                    fetch('/api/git/auth', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            token: config.pat, dir: currentDirectory
-                        })
-                    }).then(() => {
-                        term.write(`\r\n\x1b[32m[SYSTEM] Git PAT injected into sector.\x1b[0m\r\n`);
-                    }).catch(e => console.error(e));
-                }
-            }
-
-            function openSettings() {
-                document.getElementById('settingsModal').style.display = 'flex';
-            }
-            function closeSettings() {
-                document.getElementById('settingsModal').style.display = 'none';
-            }
-
-            function saveWorkspaceState() {
-                setTimeout(() => {
-                    const state = {
-                        dir: currentDirectory, tabs: Object.keys(openTabs), active: currentOpenPath
-                    };
-                    localStorage.setItem('crucible-workspace', JSON.stringify(state));
-                }, 50);
-            }
-
-            async function restoreWorkspaceState() {
-                const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
-                if (!saved || !saved.dir) {
-                    await loadTree('');
-                    return;
-                }
-                await loadTree(saved.dir);
-                if (saved.tabs) {
-                    for (const path of saved.tabs) {
-                        try {
-                            const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
-                            if (res.ok) {
-                                const content = await res.text();
-                                const fileName = path.split(/[\\/]/).pop();
-                                const session = ace.createEditSession(content, getSyntaxMode(fileName));
-                                session.setUseWrapMode(editor.getOption("wrap") !== "off");
-
-                                // Initialize the clean state and attach the tracker for restored tabs
-                                session.getUndoManager().markClean();
-                                session.on('change', () => refreshTabVisuals());
-
-                                openTabs[path] = {
-                                    session,
-                                    name: fileName
-                                };
-                                createTabUI(path, fileName);
-                            }
-                        } catch(e) {}
-                    }
-                }
-                if (saved.active && openTabs[saved.active]) switchTab(saved.active);
-            }
-
-            async function renameItem() {
-                if (!currentOpenPath) return alert("Select an active file in the editor first.");
-                const oldName = currentOpenPath.split(/[\\/]/).pop();
-                const newName = prompt("Rename to:", oldName);
-                if (!newName || newName === oldName) return;
-
-                const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join('/');
-                const newPath = parentDir ? `${parentDir}/${newName}`: newName;
-
-                try {
-                    const res = await fetch('/api/rename', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            oldPath: currentOpenPath, newPath: newPath
-                        })
-                    });
-                    const result = await res.json();
-                    if (result.error) throw new Error(result.error);
-
-                    const oldPath = currentOpenPath;
-                    delete openTabs[oldPath];
-                    document.getElementById(`tab-${btoa(oldPath).replace(/=/g, '')}`)?.remove();
-
-                    await loadTree(currentDirectory);
-                    await openFile(newPath);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Renamed: ${oldName} -> ${newName}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Rename failed: ${e.message}\x1b[0m\r\n`);
-                }
-            }
-
-            async function deleteItem() {
-                if (!currentOpenPath) return alert("Select an active file in the editor first.");
-                if (!confirm(`Are you sure you want to PERMANENTLY PURGE ${currentOpenPath}?`)) return;
-
-                try {
-                    const res = await fetch('/api/delete', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path: currentOpenPath
-                        })
-                    });
-                    const result = await res.json();
-                    if (result.error) throw new Error(result.error);
-
-                    closeTab(currentOpenPath);
-                    await loadTree(currentDirectory);
-                    term.write(`\r\n\x1b[33m[SYSTEM] Deleted: ${currentOpenPath}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Delete failed: ${e.message}\x1b[0m\r\n`);
-                }
-            }
-
-            async function createNewFile() {
-                const name = prompt("Enter new file name (with extension):");
-                if (!name) return;
-                const path = currentDirectory ? `${currentDirectory}/${name}`: name;
-
-                try {
-                    const res = await fetch('/api/write', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path, content: ''
-                        })
-                    });
-                    if (!res.ok) throw new Error("Server write failed");
-
-                    await loadTree(currentDirectory);
-                    await openFile(path);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Created File: ${name}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Create failed.\x1b[0m\r\n`);
-                }
-            }
-
-            async function createNewFolder() {
-                const name = prompt("Enter new directory name:");
-                if (!name) return;
-                const path = currentDirectory ? `${currentDirectory}/${name}`: name;
-
-                try {
-                    const res = await fetch('/api/mkdir', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            path
-                        })
-                    });
-                    if (!res.ok) throw new Error("Server mkdir failed");
-
-                    await loadTree(currentDirectory);
-                    term.write(`\r\n\x1b[32m[SYSTEM] Created Directory: ${name}\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Mkdir failed.\x1b[0m\r\n`);
-                }
-            }
-
-            async function startIndexing() {
-                const statusEl = document.getElementById('coreStatus');
-                statusEl.innerText = "Targeting Vector Arrays...";
-                const contextFiles = Array.from(document.querySelectorAll('.context-cb:checked')).map(cb => cb.value);
-
-                try {
-                    const res = await fetch('/api/index', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            selectedFiles: contextFiles, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-                    term.write(`\r\n\x1b[34m[SYSTEM] Indexing sequence initiated for ${data.count || 'all'} targets.\x1b[0m\r\n`);
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[ERROR] Indexer handshake failed.\x1b[0m\r\n`);
-                }
-            }
-
-            async function initGitRepo() {
-                if (!confirm(`Initialize empty Git repository in ${currentDirectory}?`)) return;
-                await gitAction('init');
-            }
-
-            async function commitChanges() {
-                const msgInput = document.getElementById('commitMessage');
-                const message = msgInput.value.trim();
-                if (!message) return alert("Commit message is required.");
-
-                try {
-                    const res = await fetch('/api/git/action', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'commit', message, dir: currentDirectory
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.error) throw new Error(data.error);
-
-                    msgInput.value = '';
-                    term.write(`\r\n\x1b[32m[GIT] Commit successful: ${message}\x1b[0m\r\n`);
-                    refreshGitStatus();
-                } catch (e) {
-                    term.write(`\r\n\x1b[31m[GIT ERROR] Commit failed: ${e.message}\x1b[0m\r\n`);
-                }
-            }
-
-            function togglePreview() {
-                const preview = document.getElementById('previewFrame');
-                const outputEd = document.getElementById('outputEditor');
-                const btn = document.getElementById('previewBtn');
-                const vpControls = document.getElementById('viewportControls');
-
-                isPreviewActive = !isPreviewActive;
-
-                outputEd.style.display = isPreviewActive ? 'none': 'block';
-                preview.style.display = isPreviewActive ? 'block': 'none';
-                vpControls.style.display = isPreviewActive ? 'flex': 'none';
-
-                btn.innerText = isPreviewActive ? 'Close': 'Preview';
-                btn.style.color = isPreviewActive ? '#e74c3c': '#3498db';
-
-                if (isPreviewActive) renderPreview();
-            }
-
-            function setViewport(width) {
-                const preview = document.getElementById('previewFrame');
-                preview.style.width = width;
-                preview.style.margin = width === '100%' ? '0': '0 auto';
-            }
-
-            function togglePreviewBackground() {
-                const preview = document.getElementById('previewFrame');
-                const states = ['#ffffff',
-                    '#0a0a0a',
-                    'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23222\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23111\'/%3E%3C/svg%3E")'];
-                previewBgState = (previewBgState + 1) % states.length;
-                preview.style.background = states[previewBgState];
-            }
-
-            function renderPreview() {
-                if (!isPreviewActive) return;
-                const code = editor.getValue();
-                const interceptor = `<script>
-                (function() {
-                const pipe = (type, args) => {
-                window.parent.postMessage({ type: 'preview-' + type, data: args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') }, '*');
-                };
-                console.log = (...args) => pipe('log', args);
-                console.error = (...args) => pipe('error', args);
-                })();
-                <\/script>`;
-                document.getElementById('previewFrame').srcdoc = interceptor + code;
-            }
-
-            editor.on("change", () => {
-                if (isPreviewActive) {
-                    clearTimeout(previewTimeout);
-                    previewTimeout = setTimeout(renderPreview, 500);
-                }
-            });
-
-            window.addEventListener('message', (e) => {
-                if (e.data.type === 'preview-log') term.write(`\r\n\x1b[36m[LOG]\x1b[0m ${e.data.data}\r\n`);
-                if (e.data.type === 'preview-error') term.write(`\r\n\x1b[31m[ERR]\x1b[0m ${e.data.data}\r\n`);
-            });
-
-            window.onload = async () => {
-                try {
-                    if (typeof initResizers === 'function') initResizers();
-                    if (typeof loadSettings === 'function') loadSettings();
-
-                    if (typeof restoreWorkspaceState === 'function') {
-                        await restoreWorkspaceState();
-                    } else {
-                        await loadTree('');
-                    }
-
-                    if (term) {
-                        term.focus();
-                        term.write('\x1b[32m[FORGE ONLINE]\x1b[0m\r\n');
-                    }
-                } catch (e) {
-                    console.error("Boot Sequence Halted:", e);
-                }
-            };
-
-            document.getElementById('aiInput').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    askAI();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (aiCmdHistory.length > 0) {
-                        aiCmdIndex = Math.min(aiCmdIndex + 1, aiCmdHistory.length - 1);
-                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-                    }
-                } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (aiCmdIndex > 0) {
-                        aiCmdIndex--;
-                        this.value = aiCmdHistory[aiCmdHistory.length - 1 - aiCmdIndex];
-                    } else if (aiCmdIndex === 0) {
-                        aiCmdIndex = -1;
-                        this.value = '';
-                    }
-                }
-            });
-
-            [editor, outputEditor].forEach(ed => {
-                ed.commands.addCommand({
-                    name: 'save',
-                    bindKey: {
-                        win: 'Ctrl-S', mac: 'Cmd-S'
-                    },
-                    exec: saveFile
-                });
-            });
-
-        </script>
+        <!--//THE FOLLOWING MUST REMAIN "ui/themes.js"-->
+        <!--//without the leading '/'. Or things will break.-->
+        <script src="ui/themes.js"></script>
+        <script src="ui/client_bridge.js"></script>
+        <!--<script src="ui/script.js"></script>-->
+        <script src="ui/js/globals.js"></script>
+        <script src="ui/js/editor.js"></script>
+        <script src="ui/js/filesystem.js"></script>
+        <script src="ui/js/git.js"></script>
+        <script src="ui/js/ai_core.js"></script>
+        <script src="ui/js/settings.js"></script>
     </body>
 </html>

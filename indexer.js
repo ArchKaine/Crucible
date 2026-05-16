@@ -14,7 +14,7 @@ const STATE_FILE = path.resolve("./sync_state.json");
  */
 async function generateEmbedding(text) {
     return new Promise((resolve, reject) => {
-        const payload = JSON.stringify({ model: EMBED_MODEL, input: text });
+        const payload = JSON.stringify({model: EMBED_MODEL, input: text});
         const req = http.request({
             hostname: '127.0.0.1', port: 1234, path: '/v1/embeddings', method: 'POST',
             headers: {
@@ -29,7 +29,9 @@ async function generateEmbedding(text) {
                     const parsed = JSON.parse(data);
                     if (parsed.data && parsed.data[0]) resolve(parsed.data[0].embedding);
                     else reject("Handshake payload empty.");
-                } catch (e) { reject("Parse failure at endpoint."); }
+                } catch (e) {
+                    reject("Parse failure at endpoint.");
+                }
             });
         });
         req.on('error', (e) => reject(`Network Failure: ${e.message}`));
@@ -62,7 +64,7 @@ function getChunks(text, limit = 800) {
  * Recursive File Crawler.
  */
 function gatherFiles(dir, allFiles = []) {
-    const files = fs.readdirSync(dir, { withFileTypes: true });
+    const files = fs.readdirSync(dir, {withFileTypes: true});
     for (const file of files) {
         const fullPath = path.join(dir, file.name);
         if (file.isDirectory()) {
@@ -81,7 +83,7 @@ function gatherFiles(dir, allFiles = []) {
  */
 async function syncForge() {
     console.log(`[SYSTEM] Initiating Forge Sync: ${TARGET_DIR}`);
-    
+
     // Load Sync State (Prevents redundant embedding cycles)
     let state = {};
     if (fs.existsSync(STATE_FILE)) {
@@ -89,7 +91,7 @@ async function syncForge() {
     }
 
     const files = gatherFiles(TARGET_DIR);
-    const stream = fs.createWriteStream(OUTPUT_FILE, { flags: 'a' });
+    const stream = fs.createWriteStream(OUTPUT_FILE, {flags: 'a'});
 
     for (const filePath of files) {
         const stats = fs.statSync(filePath);

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const {exec} = require('child_process');
 
 module.exports = {
     // --- PATH VALIDATION SHIELD ---
@@ -17,14 +17,14 @@ module.exports = {
     listFiles: (targetDir) => {
         const secureDir = module.exports.validatePath(targetDir);
         if (!fs.existsSync(secureDir)) throw new Error("Directory does not exist.");
-        
-        const list = fs.readdirSync(secureDir, { withFileTypes: true }).map(e => ({
-            name: e.name, 
-            path: path.join(secureDir, e.name), 
+
+        const list = fs.readdirSync(secureDir, {withFileTypes: true}).map(e => ({
+            name: e.name,
+            path: path.join(secureDir, e.name),
             isDirectory: e.isDirectory()
         })).sort((a, b) => b.isDirectory - a.isDirectory || a.name.localeCompare(b.name));
-        
-        return { currentDir: secureDir, entries: list };
+
+        return {currentDir: secureDir, entries: list};
     },
 
     // Standard File Operations
@@ -48,7 +48,7 @@ module.exports = {
     deletePath: (targetPath) => {
         const securePath = module.exports.validatePath(targetPath);
         if (!fs.existsSync(securePath)) return;
-        fs.rmSync(securePath, { recursive: true, force: true });
+        fs.rmSync(securePath, {recursive: true, force: true});
     },
 
     renamePath: (oldPath, newPath) => {
@@ -61,7 +61,7 @@ module.exports = {
     mkdir: (targetPath) => {
         const securePath = module.exports.validatePath(targetPath);
         if (!fs.existsSync(securePath)) {
-            fs.mkdirSync(securePath, { recursive: true });
+            fs.mkdirSync(securePath, {recursive: true});
         }
     },
 
@@ -82,7 +82,8 @@ module.exports = {
                     try {
                         const entry = JSON.parse(line);
                         indexedPaths.add(entry.path);
-                    } catch (e) { /* Skip corrupt line */ }
+                    } catch (e) { /* Skip corrupt line */
+                    }
                 }
             });
         }
@@ -94,7 +95,7 @@ module.exports = {
         } else {
             function gatherFiles(currentDir) {
                 try {
-                    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+                    const entries = fs.readdirSync(currentDir, {withFileTypes: true});
                     for (const entry of entries) {
                         const fullPath = path.join(currentDir, entry.name);
                         if (entry.isDirectory()) {
@@ -105,17 +106,20 @@ module.exports = {
                             filesToProcess.push(fullPath);
                         }
                     }
-                } catch (e) { console.error(`Access denied: ${currentDir}`); }
+                } catch (e) {
+                    console.error(`Access denied: ${currentDir}`);
+                }
             }
+
             gatherFiles(dir);
         }
 
         const total = filesToProcess.length;
-        const stream = fs.createWriteStream(indexPath, { flags: 'a' });
+        const stream = fs.createWriteStream(indexPath, {flags: 'a'});
 
         for (let i = 0; i < total; i++) {
             const filePath = filesToProcess[i];
-            
+
             if (indexedPaths.has(filePath)) {
                 onProgress({
                     current: i + 1,
@@ -132,12 +136,12 @@ module.exports = {
                     const vector = await getEmbedding(content);
                     const entry = {
                         path: filePath,
-                        text: content.substring(0, 2500), 
+                        text: content.substring(0, 2500),
                         vector: vector
                     };
                     stream.write(JSON.stringify(entry) + '\n');
                 }
-            } catch (e) { 
+            } catch (e) {
                 console.error(`Sync error on ${filePath}: ${e.message}`);
             }
 
@@ -150,22 +154,22 @@ module.exports = {
         }
 
         stream.end();
-        return true; 
+        return true;
     },
-    
+
     // --- SECURE GREP SEARCH ---
     searchFiles: (query, dir) => {
         return new Promise((resolve) => {
             const secureDir = module.exports.validatePath(dir || process.cwd());
-            
+
             // Strip dangerous shell characters
             const sanitizedQuery = query.replace(/(["'$`\\])/g, '\\$1');
             const cmd = `grep -riIn "${sanitizedQuery}" "${secureDir}" --exclude-dir={.git,node_modules,ui}`;
-            
-            exec(cmd, { maxBuffer: 1024 * 1024 * 10 }, (err, stdout) => {
+
+            exec(cmd, {maxBuffer: 1024 * 1024 * 10}, (err, stdout) => {
                 const results = (stdout || "").split('\n').filter(l => l.trim() !== "").map(line => {
                     const [f, n, ...t] = line.split(':');
-                    return { path: f, line: n, text: t.join(':').trim() };
+                    return {path: f, line: n, text: t.join(':').trim()};
                 });
                 resolve(results);
             });

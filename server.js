@@ -11,13 +11,59 @@ const util = require('util');
 
 const execPromise = util.promisify(exec);
 
+// --- CONFIGURATION INGESTION & MANAGEMENT ---
+const envPath = path.join(__dirname, '.env');
+const USER_THEMES_PATH = path.join(__dirname, 'user_themes.json');
+
+function loadEnv() {
+    if (fs.existsSync(envPath)) {
+        fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+            const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+            if (match) process.env[match[1]] = match[2].replace(/^["']|["']$/g, '');
+        });
+    }
+}
+
+function saveEnv(newSettings) {
+    let envMap = {};
+    if (fs.existsSync(envPath)) {
+        fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+            const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+            if (match) envMap[match[1]] = match[2].replace(/^["']|["']$/g, '');
+        });
+    }
+
+    for (const [key, value] of Object.entries(newSettings)) {
+        envMap[key] = value;
+        process.env[key] = value;
+    }
+
+    const envContent = Object.entries(envMap)
+    .map(([k, v]) => `${k}="${v}"`)
+    .join('\n');
+    fs.writeFileSync(envPath, envContent);
+}
+
+loadEnv();
+
+const PORT = process.env.CRUCIBLE_PORT || 3000;
+const LMS_PORT = process.env.LMS_PORT || 1234;
+const CHAT_MODEL = process.env.LMS_MODEL || "local-model";
+const EMBED_MODEL = process.env.EMBED_MODEL || "text-embedding-nomic-embed-text-v2-moe";
+
 // Logic isolation
 const forgeFS = require('./forge_fs');
 
-const PORT = 3000;
-const EMBED_MODEL = "text-embedding-nomic-embed-text-v2-moe";
-const CHAT_MODEL = "local-model";
 const VECTOR_INDEX_PATH = path.join(__dirname, 'vector_index.jsonl');
+
+// Suppression of all interactive Git prompts to prevent background hangs
+const GIT_ENV = {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_ASKPASS: '',
+    SSH_ASKPASS: '',
+    core_askpass: ''
+};
 
 // Global Life Support
 process.on('uncaughtException', (err) => console.error(`[CRITICAL] Error: ${err.message}`));
@@ -42,28 +88,28 @@ async function getEmbedding(text) {
             model: EMBED_MODEL, input: text
         });
         const req = http.request({
-            hostname: '127.0.0.1', port: 1234, path: '/v1/embeddings', method: 'POST',
+            hostname: '127.0.0.1', port: LMS_PORT, path: '/v1/embeddings', method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         }, (res) => {
-            let data = ''; res.on('data', d => data += d);
+            let data = '';
+            res.on('data', d => data += d);
             res.on('end', () => {
                 try {
                     resolve(JSON.parse(data).data[0].embedding);
-                }
-                catch (e) {
+                } catch (e) {
                     reject("Embedding endpoint failure.");
                 }
             });
         });
-
         req.setTimeout(15000, () => {
             req.destroy();
             reject(new Error("Embedding Timeout"));
         });
-
-        req.on('error', reject); req.write(payload); req.end();
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
     });
 }
 
@@ -79,61 +125,116 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
 
-    // --- PRIMARY ROUTE ---
-    if (pathname === '/' && req.method === 'GET') {
-        return res.end(fs.readFileSync(path.join(__dirname, 'ui', 'dashboard.html'), 'utf8'));
-    }
+    // --- GET ROUTER ---
+    if (req.method === 'GET') {
+        if (pathname === '/') {
+            const uiPath = path.join(__dirname, 'ui', 'dashboard.html');
+            if (fs.existsSync(uiPath)) {
+                return res.end(fs.readFileSync(uiPath, 'utf8'));
+            }
+            return sendJSON({
+                error: "Core UI missing."
+            }, 404);
+        }
 
-    // --- STATIC ASSET DELIVERY ---
-    if (pathname === '/styles.css' && req.method === 'GET') {
-        res.writeHead(200, {
-            'Content-Type': 'text/css'
-        });
-        return res.end(fs.readFileSync(path.join(__dirname, 'ui', 'style.css'), 'utf8'));
-    }
+        // Consolidated Static Asset Router
+        if (pathname.startsWith('/ui/') || pathname.endsWith('.js') || pathname.endsWith('.css')) {
+            const relativePath = pathname.startsWith('/ui/') ? pathname: path.join('/ui', pathname);
+            // Fallback for root-level assets if not in UI (like vault.js)
+            let absolutePath = path.join(__dirname, relativePath);
+            if (!fs.existsSync(absolutePath)) {
+                absolutePath = path.join(__dirname, path.basename(pathname));
+            }
 
-    // --- GET API DATA ---
-    try {
-        if (pathname === '/api/files' && req.method === 'GET') {
+            try {
+                if (fs.existsSync(absolutePath) && fs.lstatSync(absolutePath).isFile()) {
+                    const ext = path.extname(absolutePath);
+                    const mimeTypes = {
+                        '.js': 'application/javascript',
+                        '.css': 'text/css',
+                        '.png': 'image/png',
+                        '.json': 'application/json'
+                    };
+                    res.writeHead(200, {
+                        'Content-Type': mimeTypes[ext] || 'text/plain'
+                    });
+                    fs.createReadStream(absolutePath).pipe(res);
+                    return;
+                }
+            } catch (err) {
+                console.error(`[ROUTER ERROR] Failed to serve ${pathname}:`, err.message);
+            }
+            // Silent 404 for missing assets so browser doesn't hang
+            res.writeHead(404);
+            return res.end();
+        }
+
+        if (pathname === '/api/settings') {
+            const config = {
+                theme: process.env.UI_THEME || 'chaos',
+                edFont: process.env.UI_ED_FONT || 14,
+                tmFont: process.env.UI_TM_FONT || 13,
+                pat: process.env.GIT_PAT || '',
+                repo: process.env.GIT_REPO || '',
+                gitName: process.env.GIT_NAME || '',
+                gitEmail: process.env.GIT_EMAIL || '',
+                wordwrap: process.env.UI_WORDWRAP !== 'false',
+                autoformat: process.env.UI_AUTOFORMAT !== 'false',
+                customColors: {
+                    base: process.env.UI_COLOR_BASE || '#000000',
+                    panel: process.env.UI_COLOR_PANEL || '#050505',
+                    surface: process.env.UI_COLOR_SURFACE || '#0a0a0a',
+                    hover: process.env.UI_COLOR_HOVER || '#111111',
+                    borderDark: process.env.UI_COLOR_BORDER_DARK || '#1a1a1a',
+                    borderLight: process.env.UI_COLOR_BORDER_LIGHT || '#222222',
+                    textDim: process.env.UI_COLOR_TEXT_DIM || '#444444',
+                    textMuted: process.env.UI_COLOR_TEXT_MUTED || '#666666',
+                    textMain: process.env.UI_COLOR_TEXT_MAIN || '#888888',
+                    textBright: process.env.UI_COLOR_TEXT_BRIGHT || '#cccccc',
+                    accent: process.env.UI_COLOR_ACCENT || '#569cd6'
+                }
+            };
+            return sendJSON(config);
+        }
+
+        if (pathname === '/api/themes') {
+            if (fs.existsSync(USER_THEMES_PATH)) {
+                return res.end(fs.readFileSync(USER_THEMES_PATH, 'utf8'));
+            }
+            return sendJSON({});
+        }
+
+        if (pathname === '/api/files') {
             return sendJSON(forgeFS.listFiles(url.searchParams.get('dir') || process.cwd()));
         }
 
-        if (pathname === '/api/read' && req.method === 'GET') {
+        if (pathname === '/api/read') {
             return res.end(forgeFS.readFile(url.searchParams.get('path')));
         }
 
-        if (pathname === '/api/search' && req.method === 'GET') {
+        if (pathname === '/api/search') {
             const results = await forgeFS.searchFiles(url.searchParams.get('q'), url.searchParams.get('dir'));
             return sendJSON(results);
         }
 
-
-
-        // --- GIT TELEMETRY ---
-        if (pathname === '/api/git/status' && req.method === 'GET') {
+        if (pathname === '/api/git/status') {
             const dir = url.searchParams.get('dir') || process.cwd();
             try {
                 const {
                     stdout
-                } = await execPromise(`git -C "${dir}" status -s`);
+                } = await execPromise(`git -C "${dir}" status -s`, {
+                        env: GIT_ENV
+                    });
                 const staged = [];
                 const unstaged = [];
-
                 const lines = stdout.split('\n').filter(line => line.trim() !== '');
                 lines.forEach(line => {
                     const statusCode = line.substring(0, 2);
                     const file = line.substring(3).trim();
-
-                    let uiStatus = 'U';
-                    if (statusCode.includes('M')) uiStatus = 'M';
-                    if (statusCode.includes('A')) uiStatus = 'A';
-                    if (statusCode.includes('D')) uiStatus = 'D';
-
+                    let uiStatus = statusCode.includes('M') ? 'M': statusCode.includes('A') ? 'A': statusCode.includes('D') ? 'D': 'U';
                     const item = {
-                        file,
-                        status: uiStatus
+                        file, status: uiStatus
                     };
-
                     if (statusCode[0] !== ' ' && statusCode[0] !== '?') staged.push(item);
                     if (statusCode[1] !== ' ') unstaged.push(item);
                 });
@@ -142,27 +243,75 @@ const server = http.createServer(async (req, res) => {
                     unstaged
                 });
             } catch (err) {
-                // Return empty arrays if not a git repo to prevent UI crash
                 return sendJSON({
                     staged: [],
                     unstaged: []
                 });
             }
         }
-    } catch (err) {
-        return sendJSON({
-            error: err.message
-        },
-            500);
+        return; // End of GET processing
     }
 
-    // --- POST API DATA ---
+    // --- POST ROUTER ---
     if (req.method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk.toString());
         req.on('end', async () => {
+
             try {
-                const data = JSON.parse(body);
+                const data = body ? JSON.parse(body): {};
+
+                if (pathname === '/api/settings') {
+                    const envUpdates = {
+                        UI_THEME: data.theme,
+                        UI_ED_FONT: data.edFont,
+                        UI_TM_FONT: data.tmFont,
+                        GIT_PAT: data.pat,
+                        GIT_REPO: data.repo,
+                        GIT_NAME: data.gitName,
+                        GIT_EMAIL: data.gitEmail,
+                        UI_WORDWRAP: data.wordwrap.toString(),
+                        UI_AUTOFORMAT: data.autoformat.toString(),
+                        UI_COLOR_BASE: data.customColors.base,
+                        UI_COLOR_PANEL: data.customColors.panel,
+                        UI_COLOR_SURFACE: data.customColors.surface,
+                        UI_COLOR_HOVER: data.customColors.hover,
+                        UI_COLOR_BORDER_DARK: data.customColors.borderDark,
+                        UI_COLOR_BORDER_LIGHT: data.customColors.borderLight,
+                        UI_COLOR_TEXT_DIM: data.customColors.textDim,
+                        UI_COLOR_TEXT_MUTED: data.customColors.textMuted,
+                        UI_COLOR_TEXT_MAIN: data.customColors.textMain,
+                        UI_COLOR_TEXT_BRIGHT: data.customColors.textBright,
+                        UI_COLOR_ACCENT: data.customColors.accent
+                    };
+                    saveEnv(envUpdates);
+                    return sendJSON({
+                        status: 'success'
+                    });
+                }
+
+                if (pathname === '/api/themes') {
+                    fs.writeFileSync(USER_THEMES_PATH, JSON.stringify(data, null, 2));
+                    return sendJSON({
+                        status: 'success'
+                    });
+                }
+
+                if (pathname === '/api/shutdown') {
+                    sendJSON({
+                        status: 'terminating'
+                    });
+                    const {
+                        spawn
+                    } = require('child_process');
+                    const child = spawn('bash', ['launcher.sh', 'stop'], {
+                        detached: true,
+                        stdio: 'ignore',
+                        cwd: process.cwd()
+                    });
+                    child.unref();
+                    return;
+                }
 
                 if (pathname === '/api/index') {
                     const dir = process.cwd();
@@ -170,21 +319,16 @@ const server = http.createServer(async (req, res) => {
                         const telemetry = JSON.stringify({
                             type: 'progress', data: progress
                         });
-                        wss.clients.forEach(client => {
-                            if (client.readyState === WebSocket.OPEN) client.send(telemetry);
-                        });
+                        wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(telemetry));
                     }, {
                         selectedFiles: data.selectedFiles
                     }).then(() => {
                         const final = JSON.stringify({
-                            type: 'progress',
-                            data: {
-                                percent: 100,
-                                file: 'STATIONARY'
-                            }});
-                        wss.clients.forEach(c => {
-                            if (c.readyState === WebSocket.OPEN) c.send(final);
+                            type: 'progress', data: {
+                                percent: 100, file: 'STATIONARY'
+                            }
                         });
+                        wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(final));
                     });
                     return sendJSON({
                         status: 'indexing_started'
@@ -192,141 +336,128 @@ const server = http.createServer(async (req, res) => {
                 }
 
                 if (pathname === '/api/write') {
-                    forgeFS.writeFile(data.path, data.content); return sendJSON({
+                    forgeFS.writeFile(data.path, data.content);
+                    return sendJSON({
                         status: 'success'
                     });
                 }
+
                 if (pathname === '/api/create') {
-                    forgeFS.createFile(data.path); return sendJSON({
+                    forgeFS.createFile(data.path);
+                    return sendJSON({
                         status: 'created'
                     });
                 }
 
-                // --- GIT AUTHOR CONFIGURATION ---
-                if (pathname === '/api/git/config') {
-                    const targetDir = data.dir || process.cwd();
-                    try {
-                        if (data.name) {
-                            await execPromise(`git -C "${targetDir}" config user.name "${data.name}"`);
-                        }
-                        if (data.email) {
-                            await execPromise(`git -C "${targetDir}" config user.email "${data.email}"`);
-                        }
-                        return sendJSON({
-                            success: true
-                        });
-                    } catch (err) {
-                        return sendJSON({
-                            error: err.message
-                        }, 500);
-                    }
+                if (pathname === '/api/delete') {
+                    forgeFS.deletePath(data.path);
+                    return sendJSON({
+                        status: 'deleted'
+                    });
                 }
 
-                // --- GIT REMOTE MANAGEMENT ---
+                if (pathname === '/api/rename') {
+                    forgeFS.renamePath(data.oldPath, data.newPath);
+                    return sendJSON({
+                        status: 'renamed'
+                    });
+                }
+
+                if (pathname === '/api/mkdir') {
+                    forgeFS.mkdir(data.path);
+                    return sendJSON({
+                        status: 'directory_created'
+                    });
+                }
+
+                if (pathname === '/api/git/config') {
+                    const targetDir = data.dir || process.cwd();
+                    if (data.name) await execPromise(`git -C "${targetDir}" config user.name "${data.name}"`, {
+                        env: GIT_ENV
+                    });
+                    if (data.email) await execPromise(`git -C "${targetDir}" config user.email "${data.email}"`, {
+                        env: GIT_ENV
+                    });
+                    return sendJSON({
+                        success: true
+                    });
+                }
+
                 if (pathname === '/api/git/remote') {
                     const targetDir = data.dir || process.cwd();
                     try {
-                        try {
-                            // Verify if 'origin' currently exists
-                            await execPromise(`git -C "${targetDir}" remote get-url origin`);
-                            // Overwrite existing origin
-                            await execPromise(`git -C "${targetDir}" remote set-url origin "${data.url}"`);
-                        } catch (e) {
-                            // Establish new origin if none exists
-                            await execPromise(`git -C "${targetDir}" remote add origin "${data.url}"`);
-                        }
-                        return sendJSON({
-                            success: true
+                        await execPromise(`git -C "${targetDir}" remote get-url origin`, {
+                            env: GIT_ENV
                         });
-                    } catch (err) {
-                        return sendJSON({
-                            error: err.message
-                        }, 500);
+                        await execPromise(`git -C "${targetDir}" remote set-url origin "${data.url}"`, {
+                            env: GIT_ENV
+                        });
+                    } catch (e) {
+                        await execPromise(`git -C "${targetDir}" remote add origin "${data.url}"`, {
+                            env: GIT_ENV
+                        });
                     }
+                    return sendJSON({
+                        success: true
+                    });
                 }
 
-                // --- GIT MECHANICS (Unified Engine) ---
                 if (pathname === '/api/git/action') {
                     const targetDir = data.dir || process.cwd();
                     let command = '';
-                    try {
-                        switch (data.action) {
-                            case 'init': command = `git -C "${targetDir}" init`; break;
-                            case 'stage': command = `git -C "${targetDir}" add "${data.file}"`; break;
-                            case 'unstage': command = `git -C "${targetDir}" reset HEAD "${data.file}"`; break;
-                            case 'add-all': command = `git -C "${targetDir}" add .`; break;
-
-                            // Commit properly routed through the action hub
-                            case 'commit':
-                                const cleanMessage = data.message ? data.message.replace(/"/g, '\\"'): 'Update';
-                                command = `git -C "${targetDir}" commit -m "${cleanMessage}"`;
-                                break;
-
-                            // Unified push command
-                            case 'push': command = `git -C "${targetDir}" push -u origin HEAD`; break;
-                            case 'pull': command = `git -C "${targetDir}" pull`; break;
-
-                            default: return sendJSON({
+                    switch (data.action) {
+                        case 'init': command = `git -C "${targetDir}" init`; break;
+                        case 'stage': command = `git -C "${targetDir}" add "${data.file}"`; break;
+                        case 'unstage': command = `git -C "${targetDir}" reset HEAD "${data.file}"`; break;
+                        case 'add-all': command = `git -C "${targetDir}" add .`; break;
+                        case 'commit':
+                            const cleanMsg = data.message ? data.message.replace(/"/g, '\\"'): 'Update';
+                            command = `git -C "${targetDir}" commit -m "${cleanMsg}"`;
+                            break;
+                        case 'push': command = `git -C "${targetDir}" push -u origin HEAD`; break;
+                        case 'pull': command = `git -C "${targetDir}" pull`; break;
+                        default:
+                            return sendJSON({
                                 error: "Unknown action directive."
                             }, 400);
-                            }
-
-                            if (command) {
-                                const {
-                                    stdout,
-                                    stderr
-                                } = await execPromise(command);
-                                return sendJSON({
-                                    success: true, output: stdout || stderr
-                                });
-                            }
-                        } catch (err) {
-                            // CRITICAL FIX: Extract actual Git stderr so the UI can display rejection reasons
-                            const gitError = err.stderr || err.stdout || err.message;
-                            return sendJSON({
-                                error: gitError
-                            }, 500);
                         }
+                        const {
+                            stdout,
+                            stderr
+                        } = await execPromise(command, {
+                                env: GIT_ENV
+                            });
+                        return sendJSON({
+                            success: true, output: stdout || stderr
+                        });
                     }
 
-                    // --- GIT AUTHENTICATION ---
                     if (pathname === '/api/git/auth') {
                         const targetDir = data.dir || process.cwd();
-                        try {
-                            // Retrieve the current remote URL
-                            const {
-                                stdout: remoteUrl
-                            } = await execPromise(`git -C "${targetDir}" remote get-url origin`);
-                            let cleanUrl = remoteUrl.trim();
-
-                            // Verify the protocol is HTTPS
-                            if (cleanUrl.startsWith('https://')) {
-                                // Strip existing token if one is already present
-                                cleanUrl = cleanUrl.replace(/https:\/\/[^@]+@/, 'https://');
-
-                                // Inject the new PAT
-                                const authUrl = cleanUrl.replace('https://', `https://${data.token}@`);
-                                await execPromise(`git -C "${targetDir}" remote set-url origin "${authUrl}"`);
-
-                                return sendJSON({
-                                    success: true
-                                });
-                            } else {
-                                return sendJSON({
-                                    error: "Remote is not HTTPS. SSH keys must be configured via terminal."
-                                }, 400);
-                            }
-                        } catch (err) {
+                        const {
+                            stdout: remoteUrl
+                        } = await execPromise(`git -C "${targetDir}" remote get-url origin`, {
+                                env: GIT_ENV
+                            });
+                        let cleanUrl = remoteUrl.trim().replace(/https:\/\/[^@]+@/, 'https://');
+                        if (cleanUrl.startsWith('https://')) {
+                            const githubUser = cleanUrl.split('/')[3];
+                            const authUrl = cleanUrl.replace('https://', `https://${githubUser}:${data.token}@`);
+                            await execPromise(`git -C "${targetDir}" remote set-url origin "${authUrl}"`, {
+                                env: GIT_ENV
+                            });
                             return sendJSON({
-                                error: err.message
-                            }, 500);
+                                success: true
+                            });
                         }
+                        return sendJSON({
+                            error: "Remote is not HTTPS."
+                        }, 400);
                     }
 
                     if (pathname === '/api/ai') {
-                        let context = "";
                         const query = data.history[data.history.length - 1].content;
-
+                        let context = "";
                         if (fs.existsSync(VECTOR_INDEX_PATH)) {
                             try {
                                 const qVec = await getEmbedding(query);
@@ -334,80 +465,45 @@ const server = http.createServer(async (req, res) => {
                                 const rl = readline.createInterface({
                                     input: fileStream, crlfDelay: Infinity
                                 });
-
                                 let matches = [];
                                 for await (const line of rl) {
                                     if (!line.trim()) continue;
-                                    try {
-                                        const entry = JSON.parse(line);
-                                        const score = cosineSimilarity(qVec, entry.vector);
-                                        matches.push({
-                                            path: entry.path, text: entry.text, score
-                                        });
-                                        if (matches.length > 50) {
-                                            matches.sort((a, b) => b.score - a.score);
-                                            matches = matches.slice(0, 10);
-                                        }
-                                    } catch (e) {
-                                        /* Skip corrupt line */
+                                    const entry = JSON.parse(line);
+                                    const score = cosineSimilarity(qVec, entry.vector);
+                                    matches.push({
+                                        path: entry.path, text: entry.text, score
+                                    });
+                                    if (matches.length > 50) {
+                                        matches.sort((a, b) => b.score - a.score);
+                                        matches = matches.slice(0, 10);
                                     }
                                 }
                                 matches.sort((a, b) => b.score - a.score);
-                                const finalMatches = matches.slice(0, 5);
-                                context = "\nTECHNICAL DATA:\n" + finalMatches.map(m => `[FILE: ${m.path}]\n${m.text}`).join('\n\n');
+                                context = "\nTECHNICAL DATA:\n" + matches.slice(0, 5).map(m => `[FILE: ${m.path}]\n${m.text}`).join('\n\n');
                             } catch (e) {
                                 console.error("RAG logic error.");
                             }
                         }
-
                         const messages = [{
                             role: "system",
                             content: systemContent + context
                         },
-                            ...data.history];
-                        const payload = JSON.stringify({
-                            model: CHAT_MODEL, messages, temperature: 0.1
-                        });
-
+                            ...data.history
+                        ];
                         const aiReq = http.request({
-                            hostname: '127.0.0.1', port: 1234, path: '/v1/chat/completions', method: 'POST',
+                            hostname: '127.0.0.1', port: LMS_PORT, path: '/v1/chat/completions', method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             }
                         }, (aiRes) => {
-                            let d = ''; aiRes.on('data', chunk => d += chunk);
-                            aiRes.on('end', () => {
-                                try {
-                                    sendJSON(JSON.parse(d));
-                                } catch(e) {
-                                    sendJSON({
-                                        error: "AI parse error"
-                                    }, 500);
-                                }
-                            });
+                            let d = '';
+                            aiRes.on('data', chunk => d += chunk);
+                            aiRes.on('end', () => sendJSON(JSON.parse(d)));
                         });
-                        aiReq.write(payload); aiReq.end();
-                    }
-
-                    if (pathname === '/api/delete') {
-                        forgeFS.deletePath(data.path);
-                        return sendJSON({
-                            status: 'deleted'
-                        });
-                    }
-
-                    if (pathname === '/api/rename') {
-                        forgeFS.renamePath(data.oldPath, data.newPath);
-                        return sendJSON({
-                            status: 'renamed'
-                        });
-                    }
-
-                    if (pathname === '/api/mkdir') {
-                        forgeFS.mkdir(data.path);
-                        return sendJSON({
-                            status: 'directory_created'
-                        });
+                        aiReq.write(JSON.stringify({
+                            model: CHAT_MODEL, messages, temperature: 0.1
+                        }));
+                        aiReq.end();
                     }
 
                     if (pathname === '/api/shadow-test') {
@@ -415,38 +511,65 @@ const server = http.createServer(async (req, res) => {
                         if (!fs.existsSync(shadowPath)) fs.mkdirSync(shadowPath, {
                             recursive: true
                         });
-
                         const tempFile = path.join(shadowPath, path.basename(data.path));
                         forgeFS.writeFile(tempFile, data.content);
-
+                        const ext = path.extname(tempFile);
                         let status = "Verification Success";
                         let error = null;
                         try {
-                            if (tempFile.endsWith('.js')) {
-                                require('child_process').execSync(`node --check ${tempFile}`);
+                            switch (ext) {
+                                case '.js':
+                                    require('child_process').execSync(`node --check ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.rs':
+                                    require('child_process').execSync(`rustc --color=never --out-dir ${shadowPath} ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.py':
+                                    require('child_process').execSync(`python3 -m py_compile ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.cs':
+                                    require('child_process').execSync(`dotnet build /p:OutputPath=${shadowPath} ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.html':
+                                    case '.css':
+                                        case '.json':
+                                            status = "Verification Skipped (Static File)";
+                                            break;
+                                        default:
+                                            status = "Unverified (Unknown Extension)";
+                                        }
+                                } catch (e) {
+                                    status = "Verification Failed";
+                                    error = e.stderr ? e.stderr.toString(): e.message;
                             }
-                        } catch (e) {
-                            status = "Verification Failed";
-                            error = e.message;
-                        }
-
-                        return sendJSON({
-                            status, error
+                            return sendJSON({
+                                status, error
                         });
                     }
 
                 } catch (e) {
                     sendJSON({
-                        error: "Server protocol error"
+                        error: e.stderr || e.message
                     }, 500);
                 }
             });
+            return; // End POST block
         }
-    });
+    }); // END HTTP SERVER
 
+    // --- TOP-LEVEL WEBSOCKET & LISTEN BINDINGS ---
     const wss = new WebSocket.Server({
         server
     });
+
     wss.on('connection', (ws) => {
         const ptyProcess = pty.spawn('bash',
             [],
@@ -463,13 +586,13 @@ const server = http.createServer(async (req, res) => {
         });
 
         ws.on('message',
-            (message) => {
+            (m) => {
                 try {
-                    const msg = JSON.parse(message);
+                    const msg = JSON.parse(m);
                     if (msg.type === 'input') ptyProcess.write(msg.data);
                     if (msg.type === 'resize') ptyProcess.resize(msg.cols, msg.rows);
                 } catch (e) {
-                    ptyProcess.write(message);
+                    ptyProcess.write(m);
                 }
             });
 

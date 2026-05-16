@@ -1,5 +1,5 @@
 const fs = require('fs').promises;
-const { existsSync } = require('fs');
+const {existsSync} = require('fs');
 const path = require('path');
 
 const Explorer = {
@@ -7,19 +7,19 @@ const Explorer = {
     async readFile(targetPath) {
         const resolved = path.resolve(targetPath);
         const stats = await fs.stat(resolved);
-        
+
         // 500KB Safety Limit: Prevents the 14B model from choking on data bloat
         if (stats.size > 512000) {
             throw new Error(`File overflow: ${path.basename(resolved)} is too large for the context buffer.`);
         }
-        
+
         return await fs.readFile(resolved, 'utf8');
     },
 
     // --- ATOMIC WRITE: Ensures directory existence before committing matter ---
     async writeFile(targetPath, content) {
         const resolved = path.resolve(targetPath);
-        await fs.mkdir(path.dirname(resolved), { recursive: true });
+        await fs.mkdir(path.dirname(resolved), {recursive: true});
         return await fs.writeFile(resolved, content, 'utf8');
     },
 
@@ -28,8 +28,8 @@ const Explorer = {
         const resolvedDir = path.resolve(dir);
         if (!existsSync(resolvedDir)) throw new Error("Directory sector not found.");
 
-        const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
-        
+        const entries = await fs.readdir(resolvedDir, {withFileTypes: true});
+
         const list = entries
             .filter(e => !excludes.includes(e.name))
             .map(e => ({

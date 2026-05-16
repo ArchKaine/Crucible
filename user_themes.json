@@ -1,0 +1,25 @@
+{
+  "custom_darklight": {
+    "name": "DarkLight",
+    "ace": "ace/theme/chaos",
+    "term": {
+      "background": "#000000",
+      "foreground": "#888888",
+      "cursor": "#569cd6",
+      "selection": "#222222"
+    },
+    "ui": {
+      "base": "#111111",
+      "panel": "#121212",
+      "surface": "#121212",
+      "hover": "#111111",
+      "borderDark": "#1a1a1a",
+      "borderLight": "#222222",
+      "textDim": "#444444",
+      "textMain": "#888888",
+      "accent": "#e01b24",
+      "textBright": "#cccccc",
+      "textMuted": "#666666"
+    }
+  }
+}
