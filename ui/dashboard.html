@@ -80,13 +80,8 @@
                 <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
                 <button onclick="saveFile()">Save</button>
                 <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
-<<<<<<< HEAD
                 <button onclick="executeActiveScript()" title="Execute Active Target (Ctrl+Enter)" style="color: var(--ui-accent); border-color: var(--ui-accent); font-weight: bold;">▶ RUN</button>
                 <button onclick="shutdownCrucible()" style="color: var(--ui-text-bright); border-color: var(--ui-border-dark); margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
-=======
-                <button onclick="executeActivePythonScript()" title="Execute Active Target (F5)" style="color: #2ecc71; border-color: #2ecc71; font-weight: bold;">▶ RUN</button>
-                <button onclick="shutdownCrucible()" style="color: #e74c3c; border-color: #e74c3c; margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
->>>>>>> 758864b (Huge changes. Working on python integration.)
                 <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
 
                 <div id="statusBar">
@@ -344,8 +339,6 @@
                     },
                     exec: saveFile
                 });
-<<<<<<< HEAD
-
                 // ADD THIS: Execution Macro for Ace Editor Focus
                 ed.commands.addCommand({
                     name: 'runScript',
@@ -418,127 +411,6 @@
 
                                 // Terminate the execution path to protect the terminal from rendering raw JSON notation
                                 return;
-                                222
-                            }
-                        } catch (e) {
-                            // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
-                        }
-                    }
-
-                    // Feed standard operating system shell strings straight into the terminal display matrix
-                    if (typeof term !== 'undefined' && term.write) {
-                        //term.write(rawData);
-                    }
-                };
-
-                ws.onclose = () => {
-                    console.warn("[SYSTEM] Communication pipeline dropped. Retrying interface connection...");
-                    const statusTextElement = document.getElementById('statusText');
-                    if (statusTextElement) {
-                        statusTextElement.innerText = "OFFLINE: BACKEND TERMINATED";
-                    }
-                };
-
-                ws.onerror = (err) => {
-                    console.error("[NET FAILURE] Socket exceptions detected:", err);
-                };
-
-                // Connect the layout input framework back to the native shell loop
-                if (typeof term !== 'undefined' && term.onData) {
-                    term.onData((data) => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            // Wrap user keystrokes into the designated pty transaction payload frame
-                            ws.send(JSON.stringify({
-                                type: 'input',
-                                data: data
-                            }));
-                        }
-                    });
-                }
-
-                // Core keymap input matrix tracking implementation
-                window.addEventListener('keydown',
-                    function(e) {
-
-                        // Execution Macro: Ctrl+Enter (or Cmd+Enter)
-                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                            e.preventDefault();
-                            if (typeof executeActiveScript === 'function') {
-                                executeActiveScript();
-                            }
-                        }
-
-                        // Build Macro: Ctrl+B (or Cmd+B)
-                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-                            e.preventDefault();
-                            if (window.currentSelectedPath) {
-                                fetch('/api/build', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        path: window.currentSelectedPath
-                                    })
-                                })
-                                .then(res => res.json())
-                                .then(d => console.log(`[BUILD RUNNER] Macro deployment acknowledged: ${d.status}`));
-                            }
-                        }
-                    });
-
-                // Global resize dispatcher loops system geometry data down the active link
-                window.sendResize = function() {
-                    if (ws.readyState === WebSocket.OPEN && typeof term !== 'undefined') {
-                        ws.send(JSON.stringify({
-                            type: 'resize',
-                            cols: term.cols || 80,
-                            rows: term.rows || 24
-                        }));
-                    }
-                };
-            })();
-        </script>
-=======
-            });
-
-<<<<<<< HEAD
->>>>>>> 4db95c6 (More updates)
-=======
-            // ==========================================
-            // CRUCIBLE CORE WEBSOCKET MULTIPLEXER
-            // ==========================================
-            (function() {
-                const socketProtocol = window.location.protocol === 'https:' ? 'wss://': 'ws://';
-                const socketUrl = socketProtocol + window.location.host;
-                const ws = new WebSocket(socketUrl);
-
-                // Expose the socket instance globally so peripheral interface modules can dispatch data strings
-                window.crucibleSocket = ws;
-
-                ws.onopen = () => {
-                    console.log("[SYSTEM] Unified communication pipeline operational.");
-
-                    // Force terminal geometric synchronization loop immediately following network layout connection
-                    if (typeof sendResize === 'function') {
-                        sendResize();
-                    }
-                };
-
-                ws.onmessage = (event) => {
-                    const rawData = event.data;
-
-                    // Traffic Router Guard: Intercept structured JSON telemetry strings safely
-                    if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
-                        try {
-                            const packet = JSON.parse(rawData);
-
-                            // Route the compiled data object over to the graphic status bars
-                            if (typeof window.handleCrucibleTelemetry === 'function') {
-                                window.handleCrucibleTelemetry(packet);
-
-                                // Terminate the execution path to protect the terminal from rendering raw JSON notation
-                                return;
                             }
                         } catch (e) {
                             // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
@@ -588,6 +460,5 @@
                 };
             })();
         </script>
->>>>>>> 758864b (Huge changes. Working on python integration.)
     </body>
 </html>
