@@ -53,17 +53,22 @@ function toggleCustomThemeEditor() {
     const customEditor = document.getElementById('customThemeEditor');
 
     if (customEditor) {
-        customEditor.style.display = (themeId === 'custom' || userThemes[themeId]) ? 'flex': 'none';
+        customEditor.style.display = (themeId === 'custom' || (window.userThemes && window.userThemes[themeId])) ? 'flex': 'none';
     }
 
-    if (userThemes[themeId]) {
-        const t = userThemes[themeId];
+    if (window.userThemes && window.userThemes[themeId]) {
+        const t = window.userThemes[themeId];
         document.getElementById('color-bg-base').value = t.ui.base;
         document.getElementById('color-bg-panel').value = t.ui.panel;
         document.getElementById('color-bg-surface').value = t.ui.surface;
-        document.getElementById('color-accent').value = t.ui.accent;
-        document.getElementById('color-text-bright').value = t.ui.textBright;
+        document.getElementById('color-bg-hover').value = t.ui.hover || '#111111';
+        document.getElementById('color-border-dark').value = t.ui.borderDark || '#1a1a1a';
+        document.getElementById('color-border-light').value = t.ui.borderLight || '#222222';
+        document.getElementById('color-text-dim').value = t.ui.textDim || '#444444';
         document.getElementById('color-text-muted').value = t.ui.textMuted;
+        document.getElementById('color-text-main').value = t.ui.textMain || '#888888';
+        document.getElementById('color-text-bright').value = t.ui.textBright;
+        document.getElementById('color-accent').value = t.ui.accent;
         document.getElementById('customThemeName').value = t.name;
     } else if (themeId === 'custom') {
         document.getElementById('customThemeName').value = '';
@@ -81,10 +86,10 @@ function populateThemeDropdown() {
         select.appendChild(opt);
     });
 
-    Object.keys(userThemes).forEach(key => {
+    Object.keys(window.userThemes || {}).forEach(key => {
         const opt = document.createElement('option');
         opt.value = key;
-        opt.text = `* ${userThemes[key].name}`;
+        opt.text = `* ${window.userThemes[key].name}`;
         select.appendChild(opt);
     });
 
@@ -101,49 +106,76 @@ async function saveCustomThemeToDisk() {
     const name = document.getElementById('customThemeName').value.trim() || 'My Custom Theme';
     const id = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    userThemes[id] = {
+    if (!window.userThemes) window.userThemes = {};
+
+    window.userThemes[id] = {
         name: name,
         ace: "ace/theme/chaos",
         term: window.CrucibleThemes?.chaos?.term || {
-            background: '#000000',
-            foreground: '#888888',
-            cursor: '#569cd6',
-            selection: '#222222'
+            background: document.getElementById('color-bg-base').value,
+            foreground: document.getElementById('color-text-main').value,
+            cursor: document.getElementById('color-accent').value,
+            selection: document.getElementById('color-bg-hover').value
         },
         ui: {
             base: document.getElementById('color-bg-base').value,
             panel: document.getElementById('color-bg-panel').value,
             surface: document.getElementById('color-bg-surface').value,
-            hover: '#111111',
-            borderDark: '#1a1a1a',
-            borderLight: '#222222',
-            textDim: '#444444',
-            textMain: '#888888',
-            accent: document.getElementById('color-accent').value,
+            hover: document.getElementById('color-bg-hover').value,
+            borderDark: document.getElementById('color-border-dark').value,
+            borderLight: document.getElementById('color-border-light').value,
+            textDim: document.getElementById('color-text-dim').value,
+            textMuted: document.getElementById('color-text-muted').value,
+            textMain: document.getElementById('color-text-main').value,
             textBright: document.getElementById('color-text-bright').value,
-            textMuted: document.getElementById('color-text-muted').value
+            accent: document.getElementById('color-accent').value
         }
     };
 
     try {
+        // 1. Write the vector layout data to the theme database pool
         await fetch('/api/themes', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(userThemes)
+            body: JSON.stringify(window.userThemes)
         });
 
         populateThemeDropdown();
         document.getElementById('set-theme').value = id;
-        term.write(`\r\n\x1b[32m[SYSTEM] Custom theme '${name}' saved to disk.\x1b[0m\r\n`);
+
+        // 2. Background synchronization loop to bind this ID directly to the active system state config
+        const autoConfigSync = {
+            theme: id,
+            edFont: document.getElementById('set-ed-font').value,
+            tmFont: document.getElementById('set-tm-font').value,
+            pat: document.getElementById('set-pat').value,
+            repo: document.getElementById('set-repo').value,
+            gitName: document.getElementById('set-git-name').value,
+            gitEmail: document.getElementById('set-git-email').value,
+            wordwrap: document.getElementById('set-wordwrap')?.checked ?? true,
+            autoformat: autoFormatOnSave,
+            customColors: JSON.parse(JSON.stringify(window.userThemes[id].ui))
+        };
+
+        await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(autoConfigSync)
+        });
+
+        applySettings(autoConfigSync);
+        term.write(`\r\n\x1b[32m[SYSTEM] Custom theme '${name}' saved and set as active preference.\x1b[0m\r\n`);
     } catch (e) {
         term.write('\r\n\x1b[31m[ERROR] Failed to write theme to disk.\x1b[0m\r\n');
     }
 }
 function applySettings(config) {
     const isCustomUnsaved = config.theme === 'custom';
-    let t = (window.CrucibleThemes && window.CrucibleThemes[config.theme]) || userThemes[config.theme] || (window.CrucibleThemes && window.CrucibleThemes.twilight);
+    let t = (window.CrucibleThemes && window.CrucibleThemes[config.theme]) || (window.userThemes && window.userThemes[config.theme]) || (window.CrucibleThemes && window.CrucibleThemes.twilight);
 
     const root = document.documentElement;
 
@@ -151,9 +183,14 @@ function applySettings(config) {
         root.style.setProperty('--ui-bg-base', config.customColors.base);
         root.style.setProperty('--ui-bg-panel', config.customColors.panel);
         root.style.setProperty('--ui-bg-surface', config.customColors.surface);
-        root.style.setProperty('--ui-accent', config.customColors.accent);
-        root.style.setProperty('--ui-text-bright', config.customColors.textBright);
+        root.style.setProperty('--ui-bg-hover', config.customColors.hover || '#111111');
+        root.style.setProperty('--ui-border-dark', config.customColors.borderDark || '#1a1a1a');
+        root.style.setProperty('--ui-border-light', config.customColors.borderLight || '#222222');
+        root.style.setProperty('--ui-text-dim', config.customColors.textDim || '#444444');
         root.style.setProperty('--ui-text-muted', config.customColors.textMuted);
+        root.style.setProperty('--ui-text-main', config.customColors.textMain || '#888888');
+        root.style.setProperty('--ui-text-bright', config.customColors.textBright);
+        root.style.setProperty('--ui-accent', config.customColors.accent);
     } else if (t && t.ui) {
         root.style.setProperty('--ui-bg-base', t.ui.base);
         root.style.setProperty('--ui-bg-panel', t.ui.panel);
@@ -194,10 +231,8 @@ function applySettings(config) {
         if (formatBtn) {
             if (autoFormatOnSave) {
                 formatBtn.classList.add('active');
-                formatBtn.style.color = '#2ecc71';
             } else {
                 formatBtn.classList.remove('active');
-                formatBtn.style.color = 'var(--ui-text-muted)';
             }
         }
     }
@@ -253,9 +288,14 @@ async function loadSettings() {
             safeSet('color-bg-base', saved.customColors.base);
             safeSet('color-bg-panel', saved.customColors.panel);
             safeSet('color-bg-surface', saved.customColors.surface);
-            safeSet('color-accent', saved.customColors.accent);
-            safeSet('color-text-bright', saved.customColors.textBright);
+            safeSet('color-bg-hover', saved.customColors.hover || '#111111');
+            safeSet('color-border-dark', saved.customColors.borderDark || '#1a1a1a');
+            safeSet('color-border-light', saved.customColors.borderLight || '#222222');
+            safeSet('color-text-dim', saved.customColors.textDim || '#444444');
             safeSet('color-text-muted', saved.customColors.textMuted);
+            safeSet('color-text-main', saved.customColors.textMain || '#888888');
+            safeSet('color-text-bright', saved.customColors.textBright);
+            safeSet('color-accent', saved.customColors.accent);
         }
 
         if (typeof toggleCustomThemeEditor === 'function') toggleCustomThemeEditor();
@@ -279,9 +319,14 @@ async function saveSettings() {
             base: document.getElementById('color-bg-base').value,
             panel: document.getElementById('color-bg-panel').value,
             surface: document.getElementById('color-bg-surface').value,
-            accent: document.getElementById('color-accent').value,
+            hover: document.getElementById('color-bg-hover').value,
+            borderDark: document.getElementById('color-border-dark').value,
+            borderLight: document.getElementById('color-border-light').value,
+            textDim: document.getElementById('color-text-dim').value,
+            textMuted: document.getElementById('color-text-muted').value,
+            textMain: document.getElementById('color-text-main').value,
             textBright: document.getElementById('color-text-bright').value,
-            textMuted: document.getElementById('color-text-muted').value
+            accent: document.getElementById('color-accent').value
         }
     };
 

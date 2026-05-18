@@ -91,6 +91,38 @@ body.dragging * {
 
 .resizer-h:hover, .resizer-h.active {
     background: var(--ui-accent) !important;
+<<<<<<< HEAD
+}
+
+/* --- THE ASYMMETRIC INVISIBLE HITBOXES --- */
+#resizer-sb::after, #resizer-ed::after, .resizer-v::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    /* Pins directly to the visual line split */
+    width: 14px;
+    /* Generates the active grab zone rightward, clearing the left-side scrollbars */
+    cursor: col-resize;
+    z-index: 101;
+    background: transparent;
+}
+
+#resizer-tm::after, .resizer-h::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    /* Pins directly to the visual line split */
+    height: 14px;
+    /* Generates the active grab zone downward into the terminal window top-dead space */
+    cursor: row-resize;
+    z-index: 101;
+    background: transparent;
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 }
 
 /* --- THE ASYMMETRIC INVISIBLE HITBOXES --- */
@@ -140,22 +172,36 @@ body.dragging * {
     text-transform: uppercase;
 }
 
-.toolbar {
+/* Standardized layouts for all functional action bars across panels */
+.toolbar, .controls, #viewportControls {
     display: flex;
-    gap: 5px;
-    margin-bottom: 10px;
+    flex-wrap: wrap;
+    /* Enforces multi-line flow when horizontal boundaries are breached */
+    gap: 4px;
+    align-items: center;
+    background: var(--ui-bg-panel);
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--ui-border-dark);
+    box-sizing: border-box;
+    min-height: 32px;
+    margin-bottom: 0;
 }
 
-.toolbar button {
-    flex: 1;
-    padding: 4px;
-    font-size: 10px;
-    border-radius: 4px;
+/* Explicit constraint overrides for workspace groupings */
+.sidebar .toolbar {
+    background: transparent;
+    border-bottom: none;
+    padding: 0;
+    margin-bottom: 10px;
 }
 
 #pathUI {
     background: var(--ui-bg-panel);
+<<<<<<< HEAD
+    border: 1px solid var(--ui-border-dark);
+=======
     border: 1px solid var(--ui-bg-hover);
+>>>>>>> 4db95c6 (More updates)
     margin-bottom: 10px;
     padding: 5px;
     display: flex;
@@ -176,6 +222,8 @@ body.dragging * {
 
 #breadcrumb span:hover {
     color: var(--ui-text-main);
+<<<<<<< HEAD
+=======
 }
 
 #manualPath {
@@ -187,6 +235,7 @@ body.dragging * {
     outline: none;
     width: 100%;
     box-sizing: border-box;
+>>>>>>> 4db95c6 (More updates)
 }
 
 #searchContainer {
@@ -203,14 +252,18 @@ body.dragging * {
     max-height: 200px;
     overflow-y: auto;
     font-size: 11px;
+<<<<<<< HEAD
+    border-top: 1px solid var(--ui-border-dark);
+=======
     border-top: 1px solid var(--ui-bg-hover);
+>>>>>>> 4db95c6 (More updates)
     display: none;
 }
 
 .search-item {
     padding: 4px;
     cursor: pointer;
-    border-bottom: 1px solid var(--ui-bg-hover);
+    border-bottom: 1px solid var(--ui-border-dark);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -243,7 +296,11 @@ body.dragging * {
     padding-left: 14px;
     margin: 0;
     display: none;
+<<<<<<< HEAD
+    border-left: 1px solid var(--ui-border-dark);
+=======
     border-left: 1px solid var(--ui-bg-hover);
+>>>>>>> 4db95c6 (More updates)
 }
 
 #fileList ul.expanded {
@@ -304,6 +361,8 @@ body.dragging * {
     border-left: 1px solid var(--ui-border-dark);
     min-width: 0;
     min-height: 0;
+<<<<<<< HEAD
+=======
 }
 
 .controls {
@@ -314,6 +373,7 @@ body.dragging * {
     border-bottom: 1px solid var(--ui-border-dark);
     align-items: center;
     flex-wrap: wrap;
+>>>>>>> 4db95c6 (More updates)
 }
 
 #tabBar {
@@ -341,7 +401,7 @@ body.dragging * {
     white-space: nowrap;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-radius: 8px 8px 0 0;
+    border-radius: 4px 4px 0 0;
 }
 
 .tab.active {
@@ -373,7 +433,11 @@ body.dragging * {
 #statusBar {
     flex-grow: 1;
     background: var(--ui-bg-base);
+<<<<<<< HEAD
+    height: 24px;
+=======
     height: 26px;
+>>>>>>> 4db95c6 (More updates)
     border: 1px solid var(--ui-border-dark);
     position: relative;
     overflow: hidden;
@@ -413,6 +477,13 @@ body.dragging * {
     border-top: 1px solid var(--ui-border-dark);
     position: relative;
     overflow: hidden;
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+    /* Removed padding: 5px; to prevent xterm math corruption */
+>>>>>>> 4db95c6 (More updates)
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 }
 
 #terminalBox {
@@ -421,7 +492,27 @@ body.dragging * {
     bottom: 5px;
     left: 5px;
     right: 5px;
+<<<<<<< HEAD
+<<<<<<< HEAD
     overflow: hidden;
+=======
+    /* Restores the 5px gap safely */
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
+    overflow: hidden;
+}
+
+#terminalBox > .xterm {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+#terminalBox .xterm-viewport {
+    overflow-y: auto !important;
+>>>>>>> 4db95c6 (More updates)
 }
 
 #terminalBox > .xterm {
@@ -436,13 +527,22 @@ body.dragging * {
     overflow-y: auto !important;
 }
 
-input[type="text"] {
+/* Unified Text Inputs Grid Configuration */
+input[type="text"], #manualPath, .git-controls input {
     background: var(--ui-bg-base);
-    border: 1px solid var(--ui-border-light);
-    color: var(--ui-text-main);
-    padding: 6px;
+    border: 1px solid var(--ui-border-dark);
+    border-radius: 2px;
+    color: var(--ui-text-bright);
+    padding: 0 8px;
+    height: 24px;
     outline: none;
     font-size: 12px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+input[type="text"]:focus, #manualPath:focus, .git-controls input:focus {
+    border-color: var(--ui-accent);
 }
 
 input[type="checkbox"] {
@@ -451,34 +551,61 @@ input[type="checkbox"] {
     margin: 0;
 }
 
-button, select {
-    background: var(--ui-bg-hover);
-    color: var(--ui-text-muted);
-    border: 1px solid var(--ui-border-light);
-    padding: 5px 12px;
+/* Global design architecture for interactive action elements */
+button, select, .controls select, #viewportControls select {
+    height: 24px;
+    background: var(--ui-bg-surface);
+    color: var(--ui-text-main);
+    border: 1px solid var(--ui-border-dark);
+    padding: 0 10px;
     cursor: pointer;
     font-size: 11px;
+    font-weight: 500;
     text-transform: uppercase;
     outline: none;
-    border-radius: 8px;
+    border-radius: 2px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
 }
 
-button:hover, select:hover {
-    background: var(--ui-border-light);
+button:hover, select:hover, .controls select:hover, #viewportControls select:hover {
+    background: var(--ui-bg-hover);
     color: var(--ui-text-bright);
-    border-color: var(--ui-text-dim);
+    border-color: var(--ui-accent);
 }
 
-button.active {
-    background: var(--ui-border-light);
+button.active, .controls button.active, .toolbar button.active, #viewportControls button.active {
+    background: var(--ui-bg-hover);
     color: var(--ui-text-bright);
-    border-color: var(--ui-text-dim);
+    border-color: var(--ui-accent);
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Explicit square boundary locks for navigational or formatting micro-actions */
+.toolbar button[title="Back"],
+.toolbar button[title="Forward"],
+.toolbar button[title="Parent Directory"],
+.toolbar button[title="Refresh Tree"],
+#viewportControls .btn-action {
+    width: 24px;
+    min-width: 24px;
+    padding: 0;
+}
+
+/* Select specific structural overrides */
+select option, .controls select option, #viewportControls select option {
+    background: var(--ui-bg-base);
+    color: var(--ui-text-bright);
 }
 
 .sidebar-tabs {
     display: flex;
     border-bottom: 1px solid var(--ui-border-dark);
-    margin: -10px -10px 10px -10px;
+    margin: -15px -15px 15px -15px;
     background: var(--ui-bg-base);
 }
 
@@ -488,10 +615,11 @@ button.active {
     border: none;
     border-right: 1px solid var(--ui-border-dark);
     border-bottom: 2px solid transparent;
-    padding: 8px 0;
+    padding: 10px 0;
     color: var(--ui-text-muted);
     font-size: 10px;
-    border-radius: 4px;
+    border-radius: 0;
+    height: auto;
 }
 
 .sidebar-tabs button.active {
@@ -513,13 +641,7 @@ button.active {
 
 .git-controls input {
     width: 100%;
-    box-sizing: border-box;
-    background: var(--ui-bg-base);
-    border: 1px solid var(--ui-border-light);
-    color: var(--ui-text-bright);
-    padding: 6px;
-    font-family: inherit;
-    font-size: 11px;
+    margin-bottom: 0;
 }
 
 .git-list {
@@ -545,7 +667,7 @@ button.active {
     align-items: center;
     padding: 4px;
     cursor: pointer;
-    border-bottom: 1px solid var(--ui-bg-hover);
+    border-bottom: 1px solid var(--ui-border-dark);
 }
 
 .git-item:hover {
@@ -594,9 +716,35 @@ button.active {
     flex-direction: column;
     gap: 15px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
-    border-radius: 12px;
+    border-radius: 4px;
 }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+/* --- ORPHANED BY TAB REFACTOR ---
+ * .modal-header {
+ * display: flex;
+ * justify-content: space-between;
+ * align-items: center;
+ * border-bottom: 1px solid var(--ui-border-dark);
+ * padding-bottom: 10px;
+ * }
+ *
+ * .modal-header h3 {
+ * margin: 0;
+ * color: var(--ui-text-bright);
+ * font-size: 12px;
+ * text-transform: uppercase;
+ * letter-spacing: 1px;
+ * border-top-left-radius: 12px;
+ * border-top-right-radius: 12px;
+ * }
+ * ----------------------------------- */
+
+>>>>>>> 4db95c6 (More updates)
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 .close-btn {
     cursor: pointer;
     color: var(--ui-text-muted);
@@ -604,10 +752,13 @@ button.active {
     background: none;
     border: none;
     padding: 0;
+    height: auto;
+    width: auto;
 }
 
 .close-btn:hover {
     color: #f44336;
+    background: transparent;
 }
 
 .settings-group {
@@ -633,8 +784,9 @@ button.active {
     font-size: 11px;
     outline: none;
     font-family: inherit;
-    border-radius: 6px;
+    border-radius: 2px;
     color-scheme: dark;
+    height: auto;
 }
 
 .settings-group select option {
@@ -649,7 +801,7 @@ button.active {
 .settings-group input[type="color"] {
     padding: 0;
     border: 1px solid var(--ui-border-light);
-    border-radius: 4px;
+    border-radius: 2px;
     width: 100%;
     height: 26px;
     cursor: pointer;
@@ -662,7 +814,7 @@ button.active {
 
 .settings-group input[type="color"]::-webkit-color-swatch {
     border: none;
-    border-radius: 3px;
+    border-radius: 1px;
 }
 
 .settings-row {
@@ -715,6 +867,9 @@ button.active {
     cursor: pointer;
     transition: all 0.2s;
     border-left: 3px solid transparent;
+    border-radius: 0;
+    height: auto;
+    justify-content: flex-start;
 }
 
 .settings-tab-btn:hover {
@@ -751,13 +906,20 @@ button.active {
     background: var(--ui-bg-panel);
 }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 /* File Tree Selection State Highlight */
 .fs-item.selected {
     background: var(--ui-border-light) !important;
     color: var(--ui-text-bright) !important;
     border-left: 2px solid var(--ui-accent);
     padding-left: 4px;
+<<<<<<< HEAD
+=======
     /* Adjusts for the border width to prevent text shifting */
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 }
 
 /* Visual marker indicating an active debugger breakpoint node */
@@ -769,4 +931,57 @@ button.active {
     width: 8px !important;
     height: 8px !important;
     display: inline-block;
+<<<<<<< HEAD
 }
+
+/* ==========================================
+    VIEWPORT & PREVIEW FORMAT CONTROLS
+   ========================================== */
+#viewportControls {
+    background: var(--ui-bg-panel);
+    padding: 2px 6px;
+    border: none;
+    border-radius: 0;
+    /* Changed from height: 32px to allow multi-row expansion without spilling */
+    min-height: 24px;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+#viewportControls .btn-viewport {
+    min-width: 55px;
+}
+
+#viewportControls .select-format {
+    width: 75px;
+}
+
+/* Explicit geometric separator elements */
+.control-separator, .toolbar span[style*="width: 10px"] {
+    width: 1px !important;
+    height: 14px;
+    background: var(--ui-border-light);
+    margin: 0 6px;
+    display: inline-block;
+}
+=======
+/* --- ORPHANED BY TAB REFACTOR ---
+ * .modal-footer {
+ * display: flex;
+ * justify-content: flex-end;
+ * gap: 10px;
+ * border-top: 1px solid var(--ui-border-dark);
+ * padding-top: 15px;
+ * margin-top: 5px;
+ * }
+ *
+ * .modal-footer button {
+ * border-radius: 6px;
+ * }
+ * ----------------------------------- */
+>>>>>>> 4db95c6 (More updates)
+=======
+}
+>>>>>>> 758864b (Huge changes. Working on python integration.)

@@ -350,9 +350,16 @@ const server = http.createServer(async (req, res) => {
                     }
 
                     try {
+<<<<<<< HEAD
                         // Flush memory states straight to disk storage to sync file modifications
                         fs.writeFileSync(targetFile, liveContent, 'utf8');
                     } catch (writeErr) {
+=======
+                        // Force immediate block synchronization to clear raw memory buffers to disk storage
+                        fs.writeFileSync(targetFile, liveContent, 'utf8');
+                    } catch (writeErr) {
+                        console.error(`[FORMATTER ERROR] Synchronous disk flush failed: ${writeErr.message}`);
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                         return sendJSON({
                             success: false, error: `Pre-format disk synchronization failed: ${writeErr.message}`
                         }, 200);
@@ -362,12 +369,20 @@ const server = http.createServer(async (req, res) => {
                         exec
                     } = require('child_process');
 
+<<<<<<< HEAD
                     // Execute through the Python interpreter module context to guarantee global execution path access
+=======
+                    // Tier 1: Execute directly through the Python interpreter module environment layer
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                     exec(`python3 -m ruff format "${targetFile}"`, {
                         env: process.env
                     }, (err, stdout, stderr) => {
                         if (err) {
+<<<<<<< HEAD
                             // Environment fallback path if ruff is mapped directly to a global distribution binary
+=======
+                            // Tier 2 Fallback: Attempt tracking via global system environment path variables
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                             exec(`ruff format "${targetFile}"`, {
                                 env: process.env
                             }, (fallbackErr, fStdout, fStderr) => {
@@ -375,7 +390,11 @@ const server = http.createServer(async (req, res) => {
                                     const diagnosticErr = fStderr ? fStderr.toString().trim(): fallbackErr.message;
                                     return sendJSON({
                                         success: false,
+<<<<<<< HEAD
                                         error: `Ruff execution blocked. Verify installation. Engine output: ${diagnosticErr}`
+=======
+                                        error: `Ruff execution blocked. Verify toolchain status. Diagnostics: ${diagnosticErr}`
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                                     }, 200);
                                 }
                                 readAndReturnFormatted();
@@ -719,6 +738,164 @@ const server = http.createServer(async (req, res) => {
                         if (lineMatch) {
                             lineNum = parseInt(lineMatch[1]);
                         }
+<<<<<<< HEAD
+
+                        // Isolate the root exception description line
+                        const exceptionLine = rawLines.find(l => l.match(/^\w+Error:/) || l.includes('SyntaxError'));
+                        if (exceptionLine) {
+                            errorMessage = exceptionLine.trim();
+                        }
+
+                        markers.push({
+                            row: lineNum - 1, // Normalizes coordinate mapping to match Ace Editor base-0 index
+                            column: 0,
+                            text: errorMessage,
+                            type: "error"
+                        });
+                    }
+
+                    return sendJSON({
+                        success: markers.length === 0,
+                        markers: markers
+                    });
+                });
+                return;
+            }
+
+            if (pathname === '/api/git/auth') {
+                const targetDir = data.dir || process.cwd();
+                try {
+                    const {
+                        stdout: remoteUrl
+                    } = await execPromise(`git -C "${targetDir}" remote get-url origin`, {
+                            env: GIT_ENV
+                        });
+                    let cleanUrl = remoteUrl.trim().replace(/https:\/\/[^@]+@/, 'https://');
+                    if (cleanUrl.startsWith('https://')) {
+                        const githubUser = cleanUrl.split('/')[3];
+                        const authUrl = cleanUrl.replace('https://', `https://${githubUser}:${data.token}@`);
+                        await execPromise(`git -C "${targetDir}" remote set-url origin "${authUrl}"`, {
+                            env: GIT_ENV
+                        });
+                        return sendJSON({
+                            error: "Remote is not HTTPS."
+                        }, 400);
+                    }
+                    return sendJSON({
+                        error: "Remote is not HTTPS."
+                    }, 400);
+                } catch (err) {
+                    return sendJSON({
+                        success: false,
+                        error: err.stderr ? err.stderr.toString().trim(): err.message
+                    }, 200);
+                }
+            }
+
+            if (pathname === '/api/ai') {
+                const query = data.history[data.history.length - 1].content;
+                let context = "";
+
+                if (vectorCache.length > 0) {
+                    try {
+                        const qVec = await getEmbedding(query);
+                        let matches = [];
+
+                        for (const entry of vectorCache) {
+                            const score = cosineSimilarity(qVec, entry.vector);
+                            matches.push({
+                                path: entry.path, text: entry.text, score
+                            });
+                            if (matches.length > 50) {
+                                matches.sort((a, b) => b.score - a.score);
+                                context = "\nTECHNICAL DATA:\n" + matches.slice(0, 5).map(m => `[FILE: ${m.path}]\n${m.text}`).join('\n\n');
+                            } catch (e) {
+                                console.error("RAG logic error.");
+                            }
+                        }
+                        matches.sort((a, b) => b.score - a.score);
+                        context = "\nTECHNICAL DATA:\n" + matches.slice(0, 5).map(m => `[FILE: ${m.path}]\n${m.text}`).join('\n\n');
+                    } catch (e) {
+                        console.error("In-memory tracking evaluation failure:", e.message);
+                    }
+                }
+
+                const messages = [{
+                    role: "system",
+                    content: systemContent + context
+                },
+                    ...data.history
+                ];
+                const aiReq = http.request({
+                    hostname: '127.0.0.1', port: LMS_PORT, path: '/v1/chat/completions', method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }, (aiRes) => {
+                    let d = '';
+                    aiRes.on('data', chunk => d += chunk);
+                    aiRes.on('end', () => sendJSON(JSON.parse(d)));
+                });
+                aiReq.write(JSON.stringify({
+                    model: CHAT_MODEL, messages, temperature: 0.1
+                }));
+                aiReq.end();
+                return;
+            }
+
+            if (pathname === '/api/shadow-test') {
+                try {
+                    const shadowPath = path.join('/tmp', 'crucible_shadow');
+                    if (!fs.existsSync(shadowPath)) fs.mkdirSync(shadowPath, {
+                        recursive: true
+                    });
+                    const tempFile = path.join(shadowPath, path.basename(data.path));
+                    forgeFS.writeFile(tempFile, data.content);
+                    const ext = path.extname(tempFile);
+                    let status = "Verification Success";
+                    let error = null;
+                    try {
+                        switch (ext) {
+                            case '.js':
+                                require('child_process').execSync(`node --check ${tempFile}`, {
+                                    stdio: 'pipe'
+                                });
+                                break;
+                            case '.rs':
+                                require('child_process').execSync(`rustc --color=never --out-dir ${shadowPath} ${tempFile}`, {
+                                    stdio: 'pipe'
+                                });
+                                break;
+                            case '.py':
+                                require('child_process').execSync(`python3 -m py_compile ${tempFile}`, {
+                                    stdio: 'pipe'
+                                });
+                                break;
+                            case '.cs':
+                                require('child_process').execSync(`dotnet build /p:OutputPath=${shadowPath} ${tempFile}`, {
+                                    stdio: 'pipe'
+                                });
+                                break;
+                            case '.html':
+                                case '.css':
+                                    case '.json':
+                                        status = "Verification Skipped (Static File)";
+                                        break;
+                                    default:
+                                        status = "Unverified (Unknown Extension)";
+                                    }
+                            } catch (e) {
+                                status = "Verification Failed";
+                                error = e.stderr ? e.stderr.toString(): e.message;
+                        }
+                        return sendJSON({
+                            status, error
+                    });
+                } catch (outerErr) {
+                    return sendJSON({
+                        status: "Verification Failed",
+                        error: `System allocation exception: ${outerErr.message}`
+=======
 
                         // Isolate the root exception description line
                         const exceptionLine = rawLines.find(l => l.match(/^\w+Error:/) || l.includes('SyntaxError'));
@@ -768,10 +945,13 @@ const server = http.createServer(async (req, res) => {
                     return sendJSON({
                         success: false,
                         error: err.stderr ? err.stderr.toString().trim(): err.message
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                     }, 200);
                 }
             }
 
+<<<<<<< HEAD
+=======
             if (pathname === '/api/ai') {
                 const query = data.history[data.history.length - 1].content;
                 let context = "";
@@ -877,6 +1057,7 @@ const server = http.createServer(async (req, res) => {
                 }
             }
 
+>>>>>>> 758864b (Huge changes. Working on python integration.)
             // Fallback catch boundary inside the async post block for unmapped POST routes
             if (!res.writableEnded) {
                 return sendJSON({

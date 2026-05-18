@@ -203,10 +203,14 @@ async function openFile(path) {
         if (!res.ok) throw new Error(`Server read error status: ${res.status}`);
         const content = await res.text();
 
+<<<<<<< HEAD
         // Get the syntax mode string, explicitly capturing Python mapping
         const syntaxMode = typeof getSyntaxMode === 'function' ? getSyntaxMode(fileName): 'ace/mode/text';
 
         // Ensure Ace handles the session initialization cleanly
+=======
+        const syntaxMode = getSyntaxMode(fileName);
+>>>>>>> 4db95c6 (More updates)
         const session = ace.createEditSession(content, syntaxMode);
 
         if (typeof editor !== 'undefined') {
@@ -220,6 +224,7 @@ async function openFile(path) {
             session,
             name: fileName
         };
+<<<<<<< HEAD
 
         createTabUI(path, fileName);
         switchTab(path);
@@ -238,6 +243,10 @@ async function openFile(path) {
             }
         }
 
+=======
+        createTabUI(path, fileName);
+        switchTab(path);
+>>>>>>> 4db95c6 (More updates)
     } catch (e) {
         if (typeof term !== 'undefined') {
             term.write(`\r\n\x1b[31m[ERROR] Unable to open document [${path}]: ${e.message}\x1b[0m\r\n`);
@@ -272,6 +281,7 @@ function refreshTabVisuals() {
 
 function switchTab(path) {
     currentOpenPath = path;
+<<<<<<< HEAD
 
     if (typeof editor !== 'undefined') {
         editor.setSession(openTabs[path].session);
@@ -294,6 +304,15 @@ function switchTab(path) {
         activeTab.setAttribute('data-path', path); // Ensures explicit path tracking for formatting routes
     }
 
+=======
+    if (typeof editor !== 'undefined') {
+        editor.setSession(openTabs[path].session);
+        editor.focus();
+    }
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
+    if (activeTab) activeTab.classList.add('active');
+>>>>>>> 4db95c6 (More updates)
     if (typeof saveWorkspaceState === 'function') saveWorkspaceState();
 }
 

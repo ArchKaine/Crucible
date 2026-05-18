@@ -1,6 +1,10 @@
 function initResizers() {
     const body = document.body;
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
     // Fallback variable tracking check initialization
     if (!body.style.getPropertyValue('--sidebar-width')) body.style.setProperty('--sidebar-width', '280px');
     if (!body.style.getPropertyValue('--editor-width')) body.style.setProperty('--editor-width', '1fr');
@@ -9,6 +13,7 @@ function initResizers() {
 
     // Restore custom layout allocation state maps from persistent local memory storage
     const savedLayout = localStorage.getItem('crucible-layout-vars');
+<<<<<<< HEAD
     if (savedLayout) {
         try {
             const layout = JSON.parse(savedLayout);
@@ -18,24 +23,61 @@ function initResizers() {
             if (layout.terminalHeight) body.style.setProperty('--terminal-height', layout.terminalHeight);
         } catch (e) {
             console.error("Layout variable restoration sequence failed:", e);
+=======
+    // Restore layout allocations from persistent storage if available
+    const savedLayout = localStorage.getItem('crucible-layout');
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
+    if (savedLayout) {
+        try {
+            const layout = JSON.parse(savedLayout);
+            if (layout.sidebarWidth) body.style.setProperty('--sidebar-width', layout.sidebarWidth);
+            if (layout.editorWidth) body.style.setProperty('--editor-width', layout.editorWidth);
+            if (layout.outputWidth) body.style.setProperty('--output-width', layout.outputWidth);
+            if (layout.terminalHeight) body.style.setProperty('--terminal-height', layout.terminalHeight);
+        } catch (e) {
+<<<<<<< HEAD
+            console.error("Layout restoration failed:", e);
+>>>>>>> 4db95c6 (More updates)
+=======
+            console.error("Layout variable restoration sequence failed:", e);
+>>>>>>> 758864b (Huge changes. Working on python integration.)
         }
     }
 
     const startDragging = (id, type) => {
         const resizer = document.getElementById(id);
         if (!resizer) {
+<<<<<<< HEAD
+<<<<<<< HEAD
             console.warn(`[UI WARNING] Missing drag segment element hook in HTML: #${id}`);
+=======
+            console.warn(`[UI WARNING] Missing drag bar in HTML: #${id}`);
+>>>>>>> 4db95c6 (More updates)
+=======
+            console.warn(`[UI WARNING] Missing drag segment element hook in HTML: #${id}`);
+>>>>>>> 758864b (Huge changes. Working on python integration.)
             return;
         }
 
         resizer.onmousedown = (e) => {
+<<<<<<< HEAD
+<<<<<<< HEAD
             e.preventDefault();
+=======
+            e.preventDefault(); // Prevent text highlights during active drag operations
+>>>>>>> 4db95c6 (More updates)
+=======
+            e.preventDefault();
+>>>>>>> 758864b (Huge changes. Working on python integration.)
             body.classList.add('dragging');
             resizer.classList.add('active');
 
             document.onmousemove = (moveE) => {
                 if (type === 'sidebar') {
                     const targetW = Math.max(40, moveE.clientX);
+<<<<<<< HEAD
+<<<<<<< HEAD
                     body.style.setProperty('--sidebar-width', `${targetW}px`);
                 } else if (type === 'editor') {
                     const sidebarW = parseInt(window.getComputedStyle(body).getPropertyValue('--sidebar-width')) || 280;
@@ -47,6 +89,30 @@ function initResizers() {
                 }
 
                 // Force workspace tracking frames to evaluate dimensional resizing updates
+=======
+                    let currentCols = body.style.gridTemplateColumns || window.getComputedStyle(body).gridTemplateColumns;
+                    let cols = currentCols.split(' ');
+                    let edW = cols[1] || '1fr';
+                    let outW = cols[2] || '1fr';
+                    body.style.gridTemplateColumns = `${targetW}px ${edW} ${outW}`;
+=======
+                    body.style.setProperty('--sidebar-width', `${targetW}px`);
+>>>>>>> 758864b (Huge changes. Working on python integration.)
+                } else if (type === 'editor') {
+                    const sidebarW = parseInt(window.getComputedStyle(body).getPropertyValue('--sidebar-width')) || 280;
+                    const targetEdW = Math.max(50, moveE.clientX - sidebarW);
+                    body.style.setProperty('--editor-width', `${targetEdW}px`);
+                } else if (type === 'terminal') {
+                    const targetH = Math.max(0, window.innerHeight - moveE.clientY);
+                    body.style.setProperty('--terminal-height', `${targetH}px`);
+                }
+
+<<<<<<< HEAD
+                // Force workspace sub-buffers to track tracking sizes
+>>>>>>> 4db95c6 (More updates)
+=======
+                // Force workspace tracking frames to evaluate dimensional resizing updates
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                 if (typeof editor !== 'undefined' && editor.resize) editor.resize();
                 if (typeof outputEditor !== 'undefined' && outputEditor.resize) outputEditor.resize();
             };
@@ -57,11 +123,23 @@ function initResizers() {
                 document.onmousemove = null;
                 document.onmouseup = null;
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                 localStorage.setItem('crucible-layout-vars', JSON.stringify({
                     sidebarWidth: body.style.getPropertyValue('--sidebar-width'),
                     editorWidth: body.style.getPropertyValue('--editor-width'),
                     outputWidth: body.style.getPropertyValue('--output-width'),
                     terminalHeight: body.style.getPropertyValue('--terminal-height')
+<<<<<<< HEAD
+=======
+                localStorage.setItem('crucible-layout', JSON.stringify({
+                    cols: body.style.gridTemplateColumns,
+                    rows: body.style.gridTemplateRows
+>>>>>>> 4db95c6 (More updates)
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                 }));
 
                 if (typeof sendResize === 'function') sendResize();
@@ -76,6 +154,8 @@ function initResizers() {
 
 function toggleSplitView() {
     const body = document.body;
+<<<<<<< HEAD
+<<<<<<< HEAD
     splitViewActive = !splitViewActive;
     const btn = document.getElementById('splitBtn');
 
@@ -93,6 +173,38 @@ function toggleSplitView() {
         if (restoredOutputW === '0px' || restoredOutputW === '0') restoredOutputW = '1fr';
         body.style.setProperty('--output-width', restoredOutputW);
         body.style.setProperty('--editor-width', '1fr');
+=======
+    const sidebar = document.getElementById('mainSidebar');
+    const sidebarW = sidebar ? window.getComputedStyle(sidebar).width: '280px';
+    let currentCols = body.style.gridTemplateColumns || window.getComputedStyle(body).gridTemplateColumns;
+    const cols = currentCols.split(' ');
+
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
+    splitViewActive = !splitViewActive;
+    const btn = document.getElementById('splitBtn');
+
+    if (!splitViewActive) {
+        if (btn) btn.classList.remove('active');
+        const currentOutputW = window.getComputedStyle(body).getPropertyValue('--output-width');
+        if (currentOutputW !== '0px' && currentOutputW !== '0') {
+            body.setAttribute('data-saved-output-w', currentOutputW);
+        }
+        body.style.setProperty('--output-width', '0px');
+        body.style.setProperty('--editor-width', '1fr');
+    } else {
+        if (btn) btn.classList.add('active');
+<<<<<<< HEAD
+        let savedEd = body.getAttribute('data-saved-editor') || '1fr';
+        if (savedEd === '0px' || savedEd === '0') savedEd = '1fr';
+        body.style.gridTemplateColumns = `${sidebarW} ${savedEd} 1fr`;
+>>>>>>> 4db95c6 (More updates)
+=======
+        let restoredOutputW = body.getAttribute('data-saved-output-w') || '1fr';
+        if (restoredOutputW === '0px' || restoredOutputW === '0') restoredOutputW = '1fr';
+        body.style.setProperty('--output-width', restoredOutputW);
+        body.style.setProperty('--editor-width', '1fr');
+>>>>>>> 758864b (Huge changes. Working on python integration.)
     }
 
     setTimeout(() => {
@@ -110,17 +222,44 @@ function toggleTerminal() {
 
     if (!terminalActive) {
         if (btn) btn.classList.remove('active');
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
         const currentTermH = window.getComputedStyle(body).getPropertyValue('--terminal-height');
         if (currentTermH !== '0px' && currentTermH !== '0') {
             body.setAttribute('data-saved-terminal-h', currentTermH);
         }
         body.style.setProperty('--terminal-height', '0px');
+<<<<<<< HEAD
         if (termContainer) termContainer.style.display = 'none';
     } else {
         if (btn) btn.classList.add('active');
         let restoredTermH = body.getAttribute('data-saved-terminal-h') || '350px';
         if (restoredTermH === '0px' || restoredTermH === '0') restoredTermH = '350px';
         body.style.setProperty('--terminal-height', restoredTermH);
+=======
+        let currentRows = body.style.gridTemplateRows || window.getComputedStyle(body).gridTemplateRows;
+        let rows = currentRows.split(' ');
+        let savedH = rows[1] || '350px';
+        if (savedH === '0px' || savedH === '0') savedH = '350px';
+        body.setAttribute('data-saved-terminal', savedH);
+        body.style.gridTemplateRows = '1fr 0px';
+        if (termContainer) termContainer.style.display = 'none';
+    } else {
+        if (btn) btn.classList.add('active');
+        let savedTerm = body.getAttribute('data-saved-terminal') || '350px';
+        if (savedTerm === '0px' || savedTerm === '0') savedTerm = '350px';
+        body.style.gridTemplateRows = `1fr ${savedTerm}`;
+>>>>>>> 4db95c6 (More updates)
+=======
+        if (termContainer) termContainer.style.display = 'none';
+    } else {
+        if (btn) btn.classList.add('active');
+        let restoredTermH = body.getAttribute('data-saved-terminal-h') || '350px';
+        if (restoredTermH === '0px' || restoredTermH === '0') restoredTermH = '350px';
+        body.style.setProperty('--terminal-height', restoredTermH);
+>>>>>>> 758864b (Huge changes. Working on python integration.)
         if (termContainer) termContainer.style.display = 'flex';
     }
 
@@ -153,6 +292,7 @@ function toggleWrap() {
     }
 }
 
+<<<<<<< HEAD
 // ==========================================
 // WYSIWYG PREVIEW INTERFACE SYSTEMS
 // ==========================================
@@ -160,6 +300,8 @@ function toggleWrap() {
 let liveSyncDebounceTimeout;
 let isSyncingFromIframe = false;
 
+=======
+>>>>>>> 4db95c6 (More updates)
 function togglePreview() {
     const frame = document.getElementById('previewFrame');
     const outEd = document.getElementById('outputEditor');
@@ -173,6 +315,7 @@ function togglePreview() {
         if (outEd) outEd.style.display = 'none';
         if (btn) btn.classList.add('active');
         if (vpControls) vpControls.style.display = 'flex';
+<<<<<<< HEAD
 
         renderPreview();
         activateLivePreviewSync();
@@ -189,14 +332,30 @@ function togglePreview() {
 function renderPreview() {
     const frame = document.getElementById('previewFrame');
     if (!frame || !isPreviewActive || typeof editor === 'undefined') return;
+=======
+        renderPreview();
+    } else {
+        if (frame) frame.style.display = 'none';
+        if (outEd) outEd.style.display = 'block';
+        if (btn) btn.classList.remove('active');
+        if (vpControls) vpControls.style.display = 'none';
+    }
+}
+
+function renderPreview() {
+    const frame = document.getElementById('previewFrame');
+    if (!frame || !isPreviewActive) return;
+>>>>>>> 4db95c6 (More updates)
     const doc = frame.contentDocument || frame.contentWindow.document;
     doc.open();
     doc.write(editor.getValue());
     doc.close();
+<<<<<<< HEAD
 
     injectPreviewInspectorRules(doc);
 }
 
+<<<<<<< HEAD
 function activateLivePreviewSync() {
     if (typeof editor === 'undefined') return;
     editor.on("input", handleLiveEditorInputMutation);
@@ -312,6 +471,8 @@ function matchTargetNodeBackToCodeSource(elementTagSignature) {
     }
 }
 
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 // ==========================================
 // DOCUMENT SYNTAX FORMATTING ACTIONS
 // ==========================================
@@ -319,6 +480,7 @@ function matchTargetNodeBackToCodeSource(elementTagSignature) {
 function triggerManualFormat() {
     if (typeof ace === 'undefined' || typeof editor === 'undefined') return;
 
+<<<<<<< HEAD
     const statusTextElement = document.getElementById('statusText');
 
     // Intercept execution and route through the Ace Linters pipeline if initialized
@@ -354,6 +516,72 @@ function runFallbackBeautify() {
         console.error("[CRUCIBLE ENGINE] Client-side formatting execution failed:", e.message);
         if (typeof term !== 'undefined') {
             term.write(`\r\n\x1b[31m[ERROR] Formatting exception encountered: ${e.message}\x1b[0m\r\n`);
+=======
+    // Direct extraction from the active session mode to bypass sidebar desynchronization
+    const sessionMode = editor.session.getMode().$id;
+    const activeTab = document.querySelector('.tab.active');
+    const resolvedPath = activeTab ? activeTab.getAttribute('data-path'): window.currentSelectedPath;
+
+    const isPython = (sessionMode === "ace/mode/python") || (resolvedPath && resolvedPath.endsWith('.py'));
+
+    if (isPython) {
+        if (!resolvedPath) {
+            console.warn("[CRUCIBLE] Formatting aborted: Active file target path mapping is unresolved.");
+            return;
+        }
+
+        const statusTextElement = document.getElementById('statusText');
+        if (statusTextElement) statusTextElement.innerText = "FORMATTING NODE...";
+
+        // Ship the live viewport text buffer directly to bypass disk write race conditions
+        fetch('/api/format', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                path: resolvedPath,
+                content: editor.getValue()
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.content !== undefined) {
+                const cursorPosition = editor.getCursorPosition();
+
+                // Commit the formatted string back to the viewport asset layer
+                editor.setValue(data.content, -1);
+                editor.moveCursorToPosition(cursorPosition);
+
+                if (statusTextElement) statusTextElement.innerText = "FORMAT COMPLETE";
+                if (typeof term !== 'undefined') {
+                    term.write(`\r\n\x1b[32m[SYSTEM] Python formatting metrics recalculated via Ruff engine.\x1b[0m\r\n`);
+                }
+            } else {
+                if (statusTextElement) statusTextElement.innerText = "FORMAT FAILED";
+                if (typeof term !== 'undefined' && data.error) {
+                    term.write(`\r\n\x1b[31m[ERROR] Formatter pipeline exception: ${data.error}\x1b[0m\r\n`);
+                }
+            }
+        })
+        .catch(err => {
+            console.error("[CRUCIBLE ENGINE] Formatter transport failure:", err);
+            if (statusTextElement) statusTextElement.innerText = "NET ERROR";
+        });
+    } else {
+        // Fall back cleanly to the native browser module for web standard static components
+        try {
+            const beautify = ace.require("ace/ext/beautify");
+            beautify.beautify(editor.session);
+            if (typeof term !== 'undefined') {
+                term.write(`\r\n\x1b[32m[SYSTEM] Document formatting metrics recalculated.\x1b[0m\r\n`);
+            }
+        } catch (e) {
+            console.error("[CRUCIBLE ENGINE] Client-side formatting execution failed:", e.message);
+            if (typeof term !== 'undefined') {
+                term.write(`\r\n\x1b[31m[ERROR] Formatting exception encountered: ${e.message}\x1b[0m\r\n`);
+            }
+>>>>>>> 758864b (Huge changes. Working on python integration.)
         }
     }
 }
@@ -369,6 +597,13 @@ function toggleAutoFormat() {
     }
 }
 
+<<<<<<< HEAD
+=======
+}
+
+>>>>>>> 4db95c6 (More updates)
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 function setViewport(width) {
     const frame = document.getElementById('previewFrame');
     if (frame) frame.style.width = width;
@@ -387,6 +622,10 @@ function togglePreviewBackground() {
 window.addEventListener('resize', () => {
     if (typeof editor !== 'undefined' && editor.resize) editor.resize();
     if (typeof outputEditor !== 'undefined' && outputEditor.resize) outputEditor.resize();
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 });
 
 // ==========================================
@@ -442,6 +681,7 @@ window.handleCrucibleTelemetry = function(packet) {
             }, 4000);
         }
     }
+<<<<<<< HEAD
 };
 
 // ==========================================
@@ -656,3 +896,130 @@ function execPreviewCommand(command, value = null) {
 function setPreviewBlockStyle(tag) {
     execPreviewCommand('formatBlock', `<${tag}>`);
 }
+=======
+});
+>>>>>>> 4db95c6 (More updates)
+=======
+
+    /**
+    * Executes a static code check against the active python document
+    * Maps compilation anomalies directly onto the editor gutter array
+    */
+    function runPythonLinter() {
+        if (typeof editor === 'undefined' || !window.currentSelectedPath) return;
+
+        fetch('/api/lint', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                path: window.currentSelectedPath
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (editor.session && editor.session.setAnnotations) {
+                // Commits the diagnostic objects directly into the Ace structural framework
+                editor.session.setAnnotations(data.markers);
+            }
+        })
+        .catch(err => console.error("[CRUCIBLE LINTER] Diagnostic parsing sequence aborted:", err));
+    }
+
+    /**
+    * Commands the active shell loop to run the focused script asset
+    * Pipes the command sequence directly into the open WebSockets frame
+    */
+    function executeActivePythonScript() {
+        if (!window.currentSelectedPath) {
+            console.warn("[UI WARNING] Run command ignored: No target file highlighted in tree view.");
+            return;
+        }
+
+        const ext = window.currentSelectedPath.split('.').pop();
+        if (ext !== 'py') {
+            console.warn("[UI WARNING] Target execution profile is restricted to Python source files.");
+            return;
+        }
+
+        if (window.crucibleSocket && window.crucibleSocket.readyState === WebSocket.OPEN) {
+            // Clear the active terminal line, target the runtime interpreter, and fire the execution command
+            const runMacro = `\x03\npython3 "${window.currentSelectedPath}"\n`;
+
+            window.crucibleSocket.send(JSON.stringify({
+                type: 'input',
+                data: runMacro
+            }));
+
+            console.log(`[EXECUTION DISPATCH] Sent script execution macro for: ${window.currentSelectedPath}`);
+        } else {
+            console.error("[NET FAILURE] Macro transmission blocked: Communication pipeline is offline.");
+        }
+    }
+
+    // Configures the core editor instance to support live autocompletion mechanics
+    function enableEditorIntel() {
+        if (typeof ace !== 'undefined' && typeof editor !== 'undefined') {
+            // Injects the native language tools module
+            ace.config.loadModule("ace/ext/language_tools", function() {
+                editor.setOptions({
+                    enableBasicAutocompletion: true,
+                    enableLiveAutocompletion: true,
+                    enableSnippets: true
+                });
+            });
+        }
+    }
+
+    function initGutterBreakpoints() {
+        if (typeof editor === 'undefined') return;
+
+        editor.on("gutterclick", function(e) {
+            const targetRow = e.getDocumentPosition().row;
+            const breakpoints = e.editor.session.getBreakpoints();
+
+            if (typeof breakpoints[targetRow] === 'undefined') {
+                e.editor.session.setBreakpoint(targetRow, "breakpoint");
+                console.log(`[DEBUGGER] Breakpoint assigned to absolute row coordinate: ${targetRow + 1}`);
+            } else {
+                e.editor.session.clearBreakpoint(targetRow);
+                console.log(`[DEBUGGER] Breakpoint stripped from row coordinate: ${targetRow + 1}`);
+            }
+        });
+    }
+
+    function monitorDocumentState() {
+        if (typeof editor === 'undefined') return;
+
+        editor.on("input", function() {
+            const activeTab = document.querySelector('.tab.active');
+            if (!activeTab) return;
+
+            const isClean = editor.session.getUndoManager().isClean();
+            let indicator = activeTab.querySelector('.tab-dirty-indicator');
+
+            if (!isClean) {
+                if (!indicator) {
+                    // Injects a small visual layout dot indicating modification states
+                    indicator = document.createElement('span');
+                    indicator.className = 'tab-dirty-indicator';
+                    indicator.style.cssText = 'color: var(--ui-accent); margin-left: 6px;';
+                    indicator.innerText = '●';
+                    activeTab.appendChild(indicator);
+                }
+            } else {
+                if (indicator) indicator.remove();
+            }
+        });
+    }
+
+    // Bind automatic linting verification cycles directly onto document layout save events
+    window.addEventListener('blur',
+        () => {
+            if (window.currentSelectedPath && window.currentSelectedPath.endsWith('.py')) {
+                runPythonLinter();
+            }
+        });
+};
+>>>>>>> 758864b (Huge changes. Working on python integration.)

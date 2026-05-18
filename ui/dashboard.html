@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <title>Crucible IDE | Industrial Forge</title>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+<<<<<<< HEAD
     <link rel="stylesheet" href="/ui/style.css">
+=======
+    <link rel="stylesheet" href="ui/style.css">
+>>>>>>> 758864b (Huge changes. Working on python integration.)
 </head>
 <body>
     <div class="sidebar" id="mainSidebar">
@@ -46,7 +50,7 @@
 
             <div id="view-git" class="sidebar-view">
                 <div class="git-controls">
-                    <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: #3498db;">INITIALIZE REPO (GIT INIT)</button>
+                    <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: var(--ui-accent);">INITIALIZE REPO (GIT INIT)</button>
                     <input type="text" id="commitMessage" placeholder="Commit message...">
                     <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
                 </div>
@@ -76,12 +80,17 @@
                 <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
                 <button onclick="saveFile()">Save</button>
                 <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
-                <button onclick="executeActiveScript()" title="Execute Active Target (Ctrl+Enter)" style="color: #2ecc71; border-color: #2ecc71; font-weight: bold;">▶ RUN</button>
+<<<<<<< HEAD
+                <button onclick="executeActiveScript()" title="Execute Active Target (Ctrl+Enter)" style="color: var(--ui-accent); border-color: var(--ui-accent); font-weight: bold;">▶ RUN</button>
+                <button onclick="shutdownCrucible()" style="color: var(--ui-text-bright); border-color: var(--ui-border-dark); margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
+=======
+                <button onclick="executeActivePythonScript()" title="Execute Active Target (F5)" style="color: #2ecc71; border-color: #2ecc71; font-weight: bold;">▶ RUN</button>
                 <button onclick="shutdownCrucible()" style="color: #e74c3c; border-color: #e74c3c; margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
+>>>>>>> 758864b (Huge changes. Working on python integration.)
                 <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
 
                 <div id="statusBar">
-                    <div id="shadowStatus" style="width: 10px; height: 10px; border-radius: 50%; background: #444; margin-right: 10px;"></div>
+                    <div id="shadowStatus" style="width: 10px; height: 10px; border-radius: 50%; background: var(--ui-text-dim); margin-right: 10px;"></div>
                     <div id="progressFill"></div>
                     <div id="statusText">
                         <span id="coreStatus">System Operational</span>
@@ -93,7 +102,7 @@
 
             <div id="tabBar"></div>
 
-            <div class="toolbar" style="margin: 0; border-bottom: 1px solid #1a1a1a; background: #050505; padding: 5px;">
+            <div class="toolbar" style="margin: 0; border-bottom: 1px solid var(--ui-border-dark); background: var(--ui-bg-panel); padding: 5px;">
                 <button onclick="editor.undo()" title="Undo (Ctrl+Z)">↶ UNDO</button>
                 <button onclick="editor.redo()" title="Redo (Ctrl+Y)">↷ REDO</button>
                 <span style="width: 10px;"></span>
@@ -113,26 +122,26 @@
 
         <div class="output-container" style="display: flex; flex-direction: column;">
             <div class="controls">
-                <button onclick="togglePreview()" id="previewBtn" style="color: #3498db;">Preview</button>
+                <button onclick="togglePreview()" id="previewBtn" style="color: var(--ui-accent);">Preview</button>
                 <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
                 <button onclick="askAI()" id="execBtn">Execute</button>
 
-                <div id="viewportControls" style="display: none; gap: 5px; align-items: center;">
-                    <button onclick="setViewport('100%')">Desktop</button>
-                    <button onclick="setViewport('768px')">Tablet</button>
-                    <button onclick="setViewport('375px')">Mobile</button>
-                    <button onclick="togglePreviewBackground()" style="color: #9b59b6;">BG Toggle</button>
+                <div id="viewportControls" style="display: none; gap: 4px; align-items: center;">
+                    <button class="btn-viewport" onclick="setViewport('100%')">Desktop</button>
+                    <button class="btn-viewport" onclick="setViewport('768px')">Tablet</button>
+                    <button class="btn-viewport" onclick="setViewport('375px')">Mobile</button>
+                    <button class="btn-viewport" onclick="togglePreviewBackground()" style="color: var(--ui-accent);">BG Toggle</button>
 
-                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+                    <span class="control-separator"></span>
 
-                    <button onclick="execPreviewCommand('bold')" title="Bold Selection" style="font-weight: bold; width: 24px; padding: 2px 0;">B</button>
-                    <button onclick="execPreviewCommand('italic')" title="Italicize Selection" style="font-style: italic; width: 24px; padding: 2px 0;">I</button>
-                    <button onclick="execPreviewCommand('underline')" title="Underline Selection" style="text-decoration: underline; width: 24px; padding: 2px 0;">U</button>
-                    <button onclick="execPreviewCommand('strikeThrough')" title="Strikethrough Selection" style="text-decoration: line-through; width: 24px; padding: 2px 0;">S</button>
+                    <button class="btn-action" onclick="execPreviewCommand('bold')" title="Bold Selection">B</button>
+                    <button class="btn-action" onclick="execPreviewCommand('italic')" title="Italicize Selection" style="font-style: italic;">I</button>
+                    <button class="btn-action" onclick="execPreviewCommand('underline')" title="Underline Selection" style="text-decoration: underline;">U</button>
+                    <button class="btn-action" onclick="execPreviewCommand('strikeThrough')" title="Strikethrough Selection" style="text-decoration: line-through;">S</button>
 
-                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+                    <span class="control-separator"></span>
 
-                    <select onchange="setPreviewBlockStyle(this.value); this.selectedIndex = 0;" style="background: #050505; color: var(--ui-text); border: 1px solid #1a1a1a; padding: 2px; font-size: 11px;">
+                    <select class="select-format" onchange="setPreviewBlockStyle(this.value); this.selectedIndex = 0;" style="background: var(--ui-bg-base); color: var(--ui-text-main); border: 1px solid var(--ui-border-dark);">
                         <option value="" disabled selected>Format</option>
                         <option value="p">Paragraph</option>
                         <option value="h1">Heading 1</option>
@@ -141,24 +150,24 @@
                         <option value="pre">Code Block</option>
                     </select>
 
-                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+                    <span class="control-separator"></span>
 
-                    <button onclick="execPreviewCommand('insertUnorderedList')" title="Unordered List" style="padding: 2px 4px;">├── List</button>
-                    <button onclick="execPreviewCommand('insertOrderedList')" title="Ordered List" style="padding: 2px 4px;">1── List</button>
+                    <button onclick="execPreviewCommand('insertUnorderedList')" title="Unordered List">├── List</button>
+                    <button onclick="execPreviewCommand('insertOrderedList')" title="Ordered List">1── List</button>
 
-                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+                    <span class="control-separator"></span>
 
-                    <button onclick="const url = prompt('Enter target hyperlink URL:'); if(url) execPreviewCommand('createLink', url);" title="Insert Link" style="padding: 2px 4px;">🔗 Link</button>
-                    <button onclick="execPreviewCommand('unlink')" title="Remove Link" style="padding: 2px 4px;">Unlink</button>
+                    <button onclick="const url = prompt('Enter target hyperlink URL:'); if(url) execPreviewCommand('createLink', url);" title="Insert Link">🔗 Link</button>
+                    <button onclick="execPreviewCommand('unlink')" title="Remove Link">Unlink</button>
                 </div>
 
-                <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
-                <button onclick="applyDiffMerge()" id="mergeBtn" style="color: #2ecc71;">Merge</button>
+                <button onclick="runShadowTest()" id="verifyBtn" style="color: var(--ui-text-bright);">Verify</button>
+                <button onclick="applyDiffMerge()" id="mergeBtn" style="color: var(--ui-accent);">Merge</button>
                 <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
             </div>
 
             <div id="outputEditor" style="flex-grow: 1;"></div>
-            <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
+            <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: var(--ui-bg-base);"></iframe>
         </div>
 
         <div class="modal-overlay" id="settingsModal" style="display: none;">
@@ -217,7 +226,7 @@
                                 <h4 style="color: var(--ui-text-main); margin: 0;">Custom Theme Engine</h4>
                                 <div style="display: flex; gap: 5px;">
                                     <input type="text" id="customThemeName" placeholder="Theme Name..." style="padding: 4px 8px; font-size: 11px; width: 120px;">
-                                    <button onclick="saveCustomThemeToDisk()" style="padding: 4px 10px; font-size: 11px; color: #2ecc71; border-color: #2ecc71; background: transparent; cursor: pointer;">Save Preset</button>
+                                    <button onclick="saveCustomThemeToDisk()" style="padding: 4px 10px; font-size: 11px; color: var(--ui-accent); border-color: var(--ui-accent); background: transparent; cursor: pointer;">Save Preset</button>
                                 </div>
                             </div>
 
@@ -290,7 +299,7 @@
 
                 <div class="settings-footer">
                     <button onclick="closeSettings()" style="background: transparent; border: 1px solid var(--ui-border-dark); color: var(--ui-text-main); cursor: pointer; padding: 6px 12px;">Cancel</button>
-                    <button onclick="saveSettings()" style="color: #2ecc71; border-color: #2ecc71; background: transparent; font-weight: bold; cursor: pointer; padding: 6px 12px;">Save Changes</button>
+                    <button onclick="saveSettings()" style="color: var(--ui-accent); border-color: var(--ui-accent); background: transparent; font-weight: bold; cursor: pointer; padding: 6px 12px;">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -335,6 +344,7 @@
                     },
                     exec: saveFile
                 });
+<<<<<<< HEAD
 
                 // ADD THIS: Execution Macro for Ace Editor Focus
                 ed.commands.addCommand({
@@ -408,6 +418,7 @@
 
                                 // Terminate the execution path to protect the terminal from rendering raw JSON notation
                                 return;
+                                222
                             }
                         } catch (e) {
                             // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
@@ -488,5 +499,95 @@
                 };
             })();
         </script>
+=======
+            });
+
+<<<<<<< HEAD
+>>>>>>> 4db95c6 (More updates)
+=======
+            // ==========================================
+            // CRUCIBLE CORE WEBSOCKET MULTIPLEXER
+            // ==========================================
+            (function() {
+                const socketProtocol = window.location.protocol === 'https:' ? 'wss://': 'ws://';
+                const socketUrl = socketProtocol + window.location.host;
+                const ws = new WebSocket(socketUrl);
+
+                // Expose the socket instance globally so peripheral interface modules can dispatch data strings
+                window.crucibleSocket = ws;
+
+                ws.onopen = () => {
+                    console.log("[SYSTEM] Unified communication pipeline operational.");
+
+                    // Force terminal geometric synchronization loop immediately following network layout connection
+                    if (typeof sendResize === 'function') {
+                        sendResize();
+                    }
+                };
+
+                ws.onmessage = (event) => {
+                    const rawData = event.data;
+
+                    // Traffic Router Guard: Intercept structured JSON telemetry strings safely
+                    if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
+                        try {
+                            const packet = JSON.parse(rawData);
+
+                            // Route the compiled data object over to the graphic status bars
+                            if (typeof window.handleCrucibleTelemetry === 'function') {
+                                window.handleCrucibleTelemetry(packet);
+
+                                // Terminate the execution path to protect the terminal from rendering raw JSON notation
+                                return;
+                            }
+                        } catch (e) {
+                            // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
+                        }
+                    }
+
+                    // Feed standard operating system shell strings straight into the terminal display matrix
+                    if (typeof term !== 'undefined' && term.write) {
+                        //term.write(rawData);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.warn("[SYSTEM] Communication pipeline dropped. Retrying interface connection...");
+                    const statusTextElement = document.getElementById('statusText');
+                    if (statusTextElement) {
+                        statusTextElement.innerText = "OFFLINE: BACKEND TERMINATED";
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    console.error("[NET FAILURE] Socket exceptions detected:", err);
+                };
+
+                // Connect the layout input framework back to the native shell loop
+                if (typeof term !== 'undefined' && term.onData) {
+                    term.onData((data) => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            // Wrap user keystrokes into the designated pty transaction payload frame
+                            ws.send(JSON.stringify({
+                                type: 'input',
+                                data: data
+                            }));
+                        }
+                    });
+                }
+
+                // Global resize dispatcher loops system geometry data down the active link
+                window.sendResize = function() {
+                    if (ws.readyState === WebSocket.OPEN && typeof term !== 'undefined') {
+                        ws.send(JSON.stringify({
+                            type: 'resize',
+                            cols: term.cols || 80,
+                            rows: term.rows || 24
+                        }));
+                    }
+                };
+            })();
+        </script>
+>>>>>>> 758864b (Huge changes. Working on python integration.)
     </body>
 </html>
