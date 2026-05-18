@@ -1,3 +1,8 @@
+// Helper to detect and maintain correct cross-platform path layout separators
+function getPathSeparator(path) {
+    return path.includes('\\') ? '\\': '/';
+}
+
 async function runGlobalSearch() {
     const query = document.getElementById('globalSearchInput').value;
     const resultsBox = document.getElementById('searchResults');
@@ -9,6 +14,7 @@ async function runGlobalSearch() {
     resultsBox.style.display = 'block';
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&dir=${encodeURIComponent(currentDirectory)}`);
+        if (!res.ok) throw new Error(`HTTP Search Error: ${res.status}`);
         const data = await res.json();
         resultsBox.innerHTML = '';
         if (data.length === 0) {
@@ -21,8 +27,10 @@ async function runGlobalSearch() {
                 item.innerHTML = `<span class="search-meta">${fileName}:${match.line}</span> ${match.text}`;
                 item.onclick = () => {
                     openFile(match.path).then(() => {
-                        editor.gotoLine(match.line, 0, true);
-                        editor.focus();
+                        if (typeof editor !== 'undefined') {
+                            editor.gotoLine(match.line, 0, true);
+                            editor.focus();
+                        }
                     });
                 };
                 resultsBox.appendChild(item);
@@ -30,13 +38,17 @@ async function runGlobalSearch() {
         }
     } catch (e) {
         resultsBox.innerHTML = '<div class="search-item">Search failed.</div>';
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Global search failed: ${e.message}\x1b[0m\r\n`);
     }
 }
+
 async function loadTree(dir = '', parentElement = null, skipHistory = false) {
     try {
         const res = await fetch(`/api/files?dir=${encodeURIComponent(dir)}`);
-        if (!res.ok) throw new Error("File API unreachable.");
+        if (!res.ok) throw new Error(`FileSystem API returned status ${res.status}`);
         const data = await res.json();
+
+        if (data.error) throw new Error(data.error);
 
         if (!parentElement) {
             currentDirectory = data.currentDir;
@@ -44,12 +56,16 @@ async function loadTree(dir = '', parentElement = null, skipHistory = false) {
             const manualPathInput = document.getElementById('manualPath');
             if (manualPathInput) manualPathInput.value = currentDirectory;
 
-            if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs(currentDirectory);
+            updateBreadcrumbs(currentDirectory);
 
             if (!skipHistory) {
-                if (navIndex < navHistory.length - 1) navHistory = navHistory.slice(0, navIndex + 1);
-                navHistory.push(currentDirectory);
-                navIndex++;
+                if (navIndex < navHistory.length - 1) {
+                    navHistory = navHistory.slice(0, navIndex + 1);
+                }
+                if (navHistory[navHistory.length - 1] !== currentDirectory) {
+                    navHistory.push(currentDirectory);
+                    navIndex = navHistory.length - 1;
+                }
             }
 
             if (typeof saveWorkspaceState === 'function') saveWorkspaceState();
@@ -77,9 +93,11 @@ async function loadTree(dir = '', parentElement = null, skipHistory = false) {
                     const childUl = li.querySelector('ul');
                     if (childUl) {
                         childUl.classList.toggle('expanded');
-                        itemDiv.querySelector('.caret').classList.toggle('open');
+                        const caret = itemDiv.querySelector('.caret');
+                        if (caret) caret.classList.toggle('open');
                     } else {
-                        itemDiv.querySelector('.caret').classList.add('open');
+                        const caret = itemDiv.querySelector('.caret');
+                        if (caret) caret.classList.add('open');
                         loadTree(e.path, li, true);
                     }
                 };
@@ -91,7 +109,7 @@ async function loadTree(dir = '', parentElement = null, skipHistory = false) {
                 itemDiv.innerHTML = `<span style="width:12px; display:inline-block;"></span><input type="checkbox" class="context-cb" value="${e.path}" onclick="event.stopPropagation()"> <span class="item-icon">📄</span> ${e.name}`;
                 itemDiv.onclick = (ev) => {
                     ev.stopPropagation();
-                    if (typeof openFile === 'function') openFile(e.path);
+                    openFile(e.path);
                 };
             }
             li.appendChild(itemDiv);
@@ -100,76 +118,143 @@ async function loadTree(dir = '', parentElement = null, skipHistory = false) {
 
         parentElement.appendChild(ul);
     } catch (e) {
-        console.error("Failed to load tree:",
+        console.error("Failed to load layout directory tree:",
             e);
+        if (typeof term !== 'undefined') {
+            term.write(`\r\n\x1b[31m[ERROR] Directory mapping broken for [${dir}]: ${e.message}\x1b[0m\r\n`);
+        }
     }
 }
+
 function updateBreadcrumbs(dir) {
     const bc = document.getElementById('breadcrumb');
+    if (!bc) return;
     bc.innerHTML = '';
+
+    const separator = getPathSeparator(dir);
+    const isWindowsAbsolute = dir.includes(':');
+
+    // Split efficiently while tracking platform architecture variations
     const parts = dir.split(/[\\/]/).filter(p => p);
+
     const rootSpan = document.createElement('span');
-    rootSpan.innerText = 'ROOT / ';
-    rootSpan.onclick = () => loadTree('/');
+    rootSpan.innerText = isWindowsAbsolute ? 'WORKSPACE / ': 'ROOT / ';
+    rootSpan.onclick = () => loadTree(isWindowsAbsolute ? parts[0] + separator: '/');
     bc.appendChild(rootSpan);
-    let runningPath = '';
+
+    let runningPath = isWindowsAbsolute ? parts[0]: '';
+
     parts.forEach((p, i) => {
-        runningPath += '/' + p;
+        if (isWindowsAbsolute && i === 0) return; // Skip drive designator processing loop
+
+        if (isWindowsAbsolute) {
+            runningPath += separator + p;
+        } else {
+            runningPath += '/' + p;
+        }
+
         const s = document.createElement('span');
         s.innerText = p + (i < parts.length - 1 ? ' / ': '');
+
         const target = runningPath;
         s.onclick = () => loadTree(target);
         bc.appendChild(s);
     });
 }
+
 function goBack() {
     if (navIndex > 0) {
         navIndex--;
         loadTree(navHistory[navIndex], null, true);
     }
 }
+
 function goForward() {
     if (navIndex < navHistory.length - 1) {
         navIndex++;
         loadTree(navHistory[navIndex], null, true);
     }
 }
+
 function goUp() {
-    const parent = currentDirectory.split(/[\\/]/).slice(0, -1).join('/') || '/';
-    loadTree(parent);
-}
-async function openFile(path) {
-    const fileName = path.split(/[\\/]/).pop();
-    if (openTabs[path]) {
-        switchTab(path);
+    if (!currentDirectory || currentDirectory === '/' || currentDirectory === '') return;
+
+    const separator = getPathSeparator(currentDirectory);
+    const parts = currentDirectory.split(/[\\/]/).filter(p => p);
+
+    if (parts.length <= 1) {
+        loadTree(currentDirectory.includes(':') ? parts[0] + separator: '/');
         return;
     }
 
-    const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
-    const content = await res.text();
-
-    const syntaxMode = getSyntaxMode(fileName);
-    const session = ace.createEditSession(content, syntaxMode);
-    session.setUseWrapMode(editor.getOption("wrap") !== "off");
-
-    session.getUndoManager().markClean();
-    session.on('change', () => refreshTabVisuals());
-
-    openTabs[path] = {
-        session,
-        name: fileName
-    };
-    createTabUI(path, fileName);
-    switchTab(path);
+    const parent = parts.slice(0, -1).join(separator);
+    loadTree(currentDirectory.includes(':') ? parent: '/' + parent);
 }
+
+async function openFile(path) {
+    try {
+        const fileName = path.split(/[\\/]/).pop();
+        if (openTabs[path]) {
+            switchTab(path);
+            return;
+        }
+
+        const res = await fetch(`/api/read?path=${encodeURIComponent(path)}`);
+        if (!res.ok) throw new Error(`Server read error status: ${res.status}`);
+        const content = await res.text();
+
+        // Get the syntax mode string, explicitly capturing Python mapping
+        const syntaxMode = typeof getSyntaxMode === 'function' ? getSyntaxMode(fileName): 'ace/mode/text';
+
+        // Ensure Ace handles the session initialization cleanly
+        const session = ace.createEditSession(content, syntaxMode);
+
+        if (typeof editor !== 'undefined') {
+            session.setUseWrapMode(editor.getOption("wrap") !== "off");
+        }
+
+        session.getUndoManager().markClean();
+        session.on('change', () => refreshTabVisuals());
+
+        openTabs[path] = {
+            session,
+            name: fileName
+        };
+
+        createTabUI(path, fileName);
+        switchTab(path);
+
+        // Critical hook: Apply syntax mode post-initialization to ensure Ace Extension awareness
+        if (typeof ace !== 'undefined' && typeof editor !== 'undefined') {
+            try {
+                // Enforce proper syntax language switching based strictly on file extension
+                const modelist = ace.require("ace/ext/modelist");
+                if (modelist) {
+                    const mappedMode = modelist.getModeForPath(path).mode;
+                    editor.session.setMode(mappedMode);
+                }
+            } catch (err) {
+                console.warn("[UI SYSTEM] Modelist extension not found, syntax mapping fallback active.");
+            }
+        }
+
+    } catch (e) {
+        if (typeof term !== 'undefined') {
+            term.write(`\r\n\x1b[31m[ERROR] Unable to open document [${path}]: ${e.message}\x1b[0m\r\n`);
+        }
+    }
+}
+
 function createTabUI(path, name) {
     const tabBar = document.getElementById('tabBar');
+    if (!tabBar) return;
     const tab = document.createElement('div');
     tab.className = 'tab';
     tab.id = `tab-${btoa(path).replace(/=/g, '')}`;
     tab.innerHTML = `<span class="tab-name" onclick="switchTab('${path}')">${name}</span><span class="tab-close" onclick="closeTab('${path}')">✕</span>`;
     tabBar.appendChild(tab);
 }
+
 function refreshTabVisuals() {
     Object.keys(openTabs).forEach(path => {
         const session = openTabs[path].session;
@@ -184,63 +269,84 @@ function refreshTabVisuals() {
         }
     });
 }
+
 function switchTab(path) {
     currentOpenPath = path;
-    editor.setSession(openTabs[path].session);
+
+    if (typeof editor !== 'undefined') {
+        editor.setSession(openTabs[path].session);
+        editor.focus();
+
+        // Reinforce syntax mode when swapping active buffers
+        try {
+            const modelist = ace.require("ace/ext/modelist");
+            if (modelist) {
+                const mappedMode = modelist.getModeForPath(path).mode;
+                editor.session.setMode(mappedMode);
+            }
+        } catch(e) {}
+    }
+
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     const activeTab = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
-    if (activeTab) activeTab.classList.add('active');
-    editor.focus();
-    saveWorkspaceState();
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.setAttribute('data-path', path); // Ensures explicit path tracking for formatting routes
+    }
+
+    if (typeof saveWorkspaceState === 'function') saveWorkspaceState();
 }
+
 function closeTab(path) {
     const tabElement = document.getElementById(`tab-${btoa(path).replace(/=/g, '')}`);
     if (tabElement) tabElement.remove();
     delete openTabs[path];
     const remaining = Object.keys(openTabs);
-    if (remaining.length > 0) switchTab(remaining[remaining.length - 1]);
-    else {
+    if (remaining.length > 0) {
+        switchTab(remaining[remaining.length - 1]);
+    } else {
         currentOpenPath = '';
-        editor.setValue('', -1);
+        if (typeof editor !== 'undefined') editor.setValue('', -1);
     }
-    saveWorkspaceState();
+    if (typeof saveWorkspaceState === 'function') saveWorkspaceState();
 }
+
 async function saveFile() {
-    // 1. Preserve Auto-Formatting
-    if (autoFormatOnSave) {
+    if (autoFormatOnSave && typeof ace !== 'undefined') {
         try {
             const beautify = ace.require("ace/ext/beautify");
-            beautify.beautify(editor.session);
+            if (typeof editor !== 'undefined') beautify.beautify(editor.session);
         } catch (e) {
-            if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Formatter failed to parse syntax.\x1b[0m\r\n`);
+            if (typeof term !== 'undefined') term.write(`\r\n\x1b[33m[WARNING] Syntax formatter bypassed.\x1b[0m\r\n`);
         }
     }
 
     if (!currentOpenPath) return;
 
     try {
-        // 2. Route payload through the universal IPC bridge instead of direct fetch
+        if (typeof editor === 'undefined') return;
         await window.ClientBridge.saveFileNatively(currentOpenPath, editor.getValue());
 
-        // 3. Preserve Editor State & UI Updates
         const currentSession = openTabs[currentOpenPath].session;
         currentSession.getUndoManager().markClean();
-        if (typeof refreshTabVisuals === 'function') refreshTabVisuals();
+        refreshTabVisuals();
 
         if (typeof term !== 'undefined') term.write(`\r\n\x1b[32m[SYSTEM] Saved: ${currentOpenPath}\x1b[0m\r\n`);
     } catch (e) {
-        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Save sequence failed: ${e.message}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Save sequence blocked: ${e.message}\x1b[0m\r\n`);
         console.error("Save Error:", e);
     }
 }
+
 async function renameItem() {
     if (!currentOpenPath) return alert("Select an active file in the editor first.");
     const oldName = currentOpenPath.split(/[\\/]/).pop();
     const newName = prompt("Rename to:", oldName);
     if (!newName || newName === oldName) return;
 
-    const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join('/');
-    const newPath = parentDir ? `${parentDir}/${newName}`: newName;
+    const separator = getPathSeparator(currentOpenPath);
+    const parentDir = currentOpenPath.split(/[\\/]/).slice(0, -1).join(separator);
+    const newPath = parentDir ? `${parentDir}${separator}${newName}`: newName;
 
     try {
         const res = await fetch('/api/rename', {
@@ -261,11 +367,12 @@ async function renameItem() {
 
         await loadTree(currentDirectory);
         await openFile(newPath);
-        term.write(`\r\n\x1b[32m[SYSTEM] Renamed: ${oldName} -> ${newName}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[32m[SYSTEM] Renamed: ${oldName} -> ${newName}\x1b[0m\r\n`);
     } catch (e) {
-        term.write(`\r\n\x1b[31m[ERROR] Rename failed: ${e.message}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Rename transaction failed: ${e.message}\x1b[0m\r\n`);
     }
 }
+
 async function deleteItem() {
     if (!currentOpenPath) return alert("Select an active file in the editor first.");
     if (!confirm(`Are you sure you want to PERMANENTLY PURGE ${currentOpenPath}?`)) return;
@@ -285,15 +392,18 @@ async function deleteItem() {
 
         closeTab(currentOpenPath);
         await loadTree(currentDirectory);
-        term.write(`\r\n\x1b[33m[SYSTEM] Deleted: ${currentOpenPath}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[33m[SYSTEM] Purged: ${currentOpenPath}\x1b[0m\r\n`);
     } catch (e) {
-        term.write(`\r\n\x1b[31m[ERROR] Delete failed: ${e.message}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Delete sequence failed: ${e.message}\x1b[0m\r\n`);
     }
 }
+
 async function createNewFile() {
     const name = prompt("Enter new file name (with extension):");
     if (!name) return;
-    const path = currentDirectory ? `${currentDirectory}/${name}`: name;
+
+    const separator = getPathSeparator(currentDirectory);
+    const path = currentDirectory ? `${currentDirectory}${separator}${name}`: name;
 
     try {
         const res = await fetch('/api/write', {
@@ -305,19 +415,22 @@ async function createNewFile() {
                 path, content: ''
             })
         });
-        if (!res.ok) throw new Error("Server write failed");
+        if (!res.ok) throw new Error(`Server filesystem write violation: ${res.status}`);
 
         await loadTree(currentDirectory);
         await openFile(path);
-        term.write(`\r\n\x1b[32m[SYSTEM] Created File: ${name}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[32m[SYSTEM] Created File: ${name}\x1b[0m\r\n`);
     } catch (e) {
-        term.write(`\r\n\x1b[31m[ERROR] Create failed.\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Node generation failed: ${e.message}\x1b[0m\r\n`);
     }
 }
+
 async function createNewFolder() {
     const name = prompt("Enter new directory name:");
     if (!name) return;
-    const path = currentDirectory ? `${currentDirectory}/${name}`: name;
+
+    const separator = getPathSeparator(currentDirectory);
+    const path = currentDirectory ? `${currentDirectory}${separator}${name}`: name;
 
     try {
         const res = await fetch('/api/mkdir', {
@@ -329,11 +442,11 @@ async function createNewFolder() {
                 path
             })
         });
-        if (!res.ok) throw new Error("Server mkdir failed");
+        if (!res.ok) throw new Error(`Server mkdir exception status: ${res.status}`);
 
         await loadTree(currentDirectory);
-        term.write(`\r\n\x1b[32m[SYSTEM] Created Directory: ${name}\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[32m[SYSTEM] Created Directory: ${name}\x1b[0m\r\n`);
     } catch (e) {
-        term.write(`\r\n\x1b[31m[ERROR] Mkdir failed.\x1b[0m\r\n`);
+        if (typeof term !== 'undefined') term.write(`\r\n\x1b[31m[ERROR] Allocation error on workspace folder: ${e.message}\x1b[0m\r\n`);
     }
 }

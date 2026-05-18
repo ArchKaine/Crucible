@@ -9,6 +9,77 @@ let previewBgState = 0;
 let autoFormatOnSave = true;
 let userThemes = {};
 
+let crucibleSocket;
+let reconnectInterval = 1000;
+let maxReconnectInterval = 5000;
+let reconnectTimer;
+
+function initTerminalSocket() {
+    // Clear any existing reconnect timers
+    clearTimeout(reconnectTimer);
+
+    // Initialize the WebSocket connection (adjust the URL to match your server setup)
+    const wsUrl = `ws://${window.location.host}/terminal`;
+    crucibleSocket = new WebSocket(wsUrl);
+
+    crucibleSocket.onopen = () => {
+        console.log("[SYSTEM] WebSocket connection established.");
+        // Reset the reconnect interval on a successful connection
+        reconnectInterval = 1000;
+
+        if (typeof term !== 'undefined') {
+            term.write('\r\n\x1b[32m[SYSTEM] Terminal connection established.\x1b[0m\r\n');
+        }
+
+        // Expose the socket globally so editor.js can use it for execution macros
+        window.crucibleSocket = crucibleSocket;
+    };
+
+    crucibleSocket.onmessage = (event) => {
+        try {
+            // Attempt to parse as structured JSON first (Telemetry/Events)
+            const packet = JSON.parse(event.data);
+
+            if (packet.type === 'output' && typeof term !== 'undefined') {
+                term.write(packet.data);
+            }
+            if (packet.type === 'telemetry' && typeof handleCrucibleTelemetry === 'function') {
+                handleCrucibleTelemetry(packet.data);
+            }
+        } catch (e) {
+            // If JSON.parse fails, it's raw terminal output streaming from the shell.
+            // Catch the error silently and pipe the raw string directly into xterm.js.
+            if (typeof term !== 'undefined') {
+                term.write(event.data);
+            }
+        }
+    };
+
+    crucibleSocket.onclose = () => {
+        console.warn("[SYSTEM] Communication pipeline dropped. Retrying interface connection...");
+        if (typeof term !== 'undefined') {
+            term.write('\r\n\x1b[33m[SYSTEM] Connection lost. Attempting to reconnect...\x1b[0m\r\n');
+        }
+
+        // Remove the dead socket reference
+        window.crucibleSocket = null;
+
+        // Schedule a reconnect attempt
+        reconnectTimer = setTimeout(initTerminalSocket, reconnectInterval);
+
+        // Apply exponential backoff, up to a maximum interval
+        reconnectInterval = Math.min(reconnectInterval * 1.5, maxReconnectInterval);
+    };
+
+    crucibleSocket.onerror = (error) => {
+        console.error("[NET FAILURE] WebSocket error encountered.", error);
+        // The onclose handler will automatically fire after onerror, handling the reconnect
+    };
+}
+
+// Start the initial connection when the script loads
+initTerminalSocket();
+
 // ==========================================
 // CLIENT IPC ROUTER (Photino vs Web Sandbox)
 // ==========================================
@@ -35,7 +106,6 @@ window.ClientBridge = {
                         const wsInput = document.getElementById('set-workspace');
                         if (wsInput) wsInput.value = msg.Data;
                     }
-                    // Add future JSON commands (like HISTORY_LIST) here
                 } catch (e) {
                     // Silently ignore if it's neither NOTIFY nor valid JSON
                 }
@@ -91,7 +161,8 @@ const getSyntaxMode = (fileName) => {
         'css': 'css',
         'json': 'json',
         'md': 'markdown',
-        'sh': 'sh'
+        'sh': 'sh',
+        'py': 'python'
     };
     return `ace/mode/${modeMap[ext] || 'text'}`;
 };
@@ -143,6 +214,9 @@ const outputEditor = ace.edit("outputEditor");
 
 editor.session.setMode("ace/mode/csharp");
 
+// ==========================================
+// TERMINAL SUBSYSTEM INITIALIZATION
+// ==========================================
 const term = new Terminal({
     theme: {
         background: '#000000', foreground: '#888888', cursor: '#569cd6', selection: '#222222'
@@ -152,10 +226,27 @@ const term = new Terminal({
     cursorBlink: true,
     allowProposedApi: true
 });
+
 const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
-term.open(document.getElementById('terminalBox'));
-fitAddon.fit();
+
+// Initialize Hardware Accelerated WebGL Renderer if available
+try {
+    if (window.WebglAddon && window.WebglAddon.WebglAddon) {
+        const webglAddon = new window.WebglAddon.WebglAddon();
+        term.loadAddon(webglAddon);
+        console.log("[SYSTEM] Terminal Hardware Acceleration Active via WebGL.");
+    }
+} catch (e) {
+    console.warn("[SYSTEM] WebGL Renderer initialization bypassed. Using default DOM engine.", e);
+}
+
+// Bind terminal to physical DOM element exactly once
+const terminalContainer = document.getElementById('terminalBox');
+if (terminalContainer) {
+    term.open(terminalContainer);
+    fitAddon.fit();
+}
 
 const socket = new WebSocket(`ws://${window.location.host}`);
 
@@ -195,10 +286,25 @@ function sendResize() {
     }
 }
 
-window.onresize = () => {
-    fitAddon.fit();
-    sendResize();
+// --- UNIVERSAL TERMINAL ENGINE ---
+window.forceTerminalFit = function() {
+    if (typeof fitAddon === 'undefined' || typeof term === 'undefined') return;
+    try {
+        fitAddon.fit();
+        if (typeof sendResize === 'function') sendResize();
+    } catch(e) {}
 };
+
+// Layout changes trigger real-time terminal geometry calculations
+const termObserver = new ResizeObserver(() => {
+    clearTimeout(window.termFitTimeout);
+    window.termFitTimeout = setTimeout(window.forceTerminalFit, 20);
+});
+
+// Force execution target alignment following CSS grid allocation settlement
+setTimeout(window.forceTerminalFit, 150);
+
+if (terminalContainer) termObserver.observe(terminalContainer);
 
 let splitViewActive = true;
 let terminalActive = true;
@@ -215,10 +321,10 @@ function saveWorkspaceState() {
 async function restoreWorkspaceState() {
     const saved = JSON.parse(localStorage.getItem('crucible-workspace'));
     if (!saved || !saved.dir) {
-        await loadTree('');
+        if (typeof loadTree === 'function') await loadTree('');
         return;
     }
-    await loadTree(saved.dir);
+    if (typeof loadTree === 'function') await loadTree(saved.dir);
     if (saved.tabs) {
         for (const path of saved.tabs) {
             try {
@@ -236,12 +342,12 @@ async function restoreWorkspaceState() {
                         session,
                         name: fileName
                     };
-                    createTabUI(path, fileName);
+                    if (typeof createTabUI === 'function') createTabUI(path, fileName);
                 }
             } catch (e) {}
         }
     }
-    if (saved.active && openTabs[saved.active]) switchTab(saved.active);
+    if (saved.active && openTabs[saved.active] && typeof switchTab === 'function') switchTab(saved.active);
 }
 
 editor.on("change", () => {
@@ -296,7 +402,7 @@ window.onload = async () => {
 document.getElementById('aiInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
         e.preventDefault();
-        askAI();
+        if (typeof askAI === 'function') askAI();
     } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (aiCmdHistory.length > 0) {
@@ -313,14 +419,4 @@ document.getElementById('aiInput').addEventListener('keydown', function (e) {
             this.value = '';
         }
     }
-});
-
-[editor, outputEditor].forEach(ed => {
-    ed.commands.addCommand({
-        name: 'save',
-        bindKey: {
-            win: 'Ctrl-S', mac: 'Cmd-S'
-        },
-        exec: saveFile
-    });
 });

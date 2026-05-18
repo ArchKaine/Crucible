@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <title>Crucible IDE | Industrial Forge</title>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
-    <link rel="stylesheet" href="ui/style.css">
-
+    <link rel="stylesheet" href="/ui/style.css">
 </head>
 <body>
     <div class="sidebar" id="mainSidebar">
@@ -77,6 +76,7 @@
                 <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
                 <button onclick="saveFile()">Save</button>
                 <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
+                <button onclick="executeActiveScript()" title="Execute Active Target (Ctrl+Enter)" style="color: #2ecc71; border-color: #2ecc71; font-weight: bold;">▶ RUN</button>
                 <button onclick="shutdownCrucible()" style="color: #e74c3c; border-color: #e74c3c; margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
                 <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
 
@@ -85,6 +85,7 @@
                     <div id="progressFill"></div>
                     <div id="statusText">
                         <span id="coreStatus">System Operational</span>
+                        <span id="envIndicator" style="color: var(--ui-text-muted); font-weight: bold; margin-right: 15px; margin-left: 15px;">PYTHON: (GLOBAL)</span>
                         <span id="corePercent">0%</span>
                     </div>
                 </div>
@@ -108,6 +109,7 @@
         </div>
 
         <div class="resizer-v" id="resizer-ed"></div>
+        <div class="resizer-h" id="resizer-tm"></div>
 
         <div class="output-container" style="display: flex; flex-direction: column;">
             <div class="controls">
@@ -115,11 +117,39 @@
                 <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
                 <button onclick="askAI()" id="execBtn">Execute</button>
 
-                <div id="viewportControls" style="display: none; gap: 5px;">
+                <div id="viewportControls" style="display: none; gap: 5px; align-items: center;">
                     <button onclick="setViewport('100%')">Desktop</button>
                     <button onclick="setViewport('768px')">Tablet</button>
                     <button onclick="setViewport('375px')">Mobile</button>
                     <button onclick="togglePreviewBackground()" style="color: #9b59b6;">BG Toggle</button>
+
+                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+
+                    <button onclick="execPreviewCommand('bold')" title="Bold Selection" style="font-weight: bold; width: 24px; padding: 2px 0;">B</button>
+                    <button onclick="execPreviewCommand('italic')" title="Italicize Selection" style="font-style: italic; width: 24px; padding: 2px 0;">I</button>
+                    <button onclick="execPreviewCommand('underline')" title="Underline Selection" style="text-decoration: underline; width: 24px; padding: 2px 0;">U</button>
+                    <button onclick="execPreviewCommand('strikeThrough')" title="Strikethrough Selection" style="text-decoration: line-through; width: 24px; padding: 2px 0;">S</button>
+
+                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+
+                    <select onchange="setPreviewBlockStyle(this.value); this.selectedIndex = 0;" style="background: #050505; color: var(--ui-text); border: 1px solid #1a1a1a; padding: 2px; font-size: 11px;">
+                        <option value="" disabled selected>Format</option>
+                        <option value="p">Paragraph</option>
+                        <option value="h1">Heading 1</option>
+                        <option value="h2">Heading 2</option>
+                        <option value="h3">Heading 3</option>
+                        <option value="pre">Code Block</option>
+                    </select>
+
+                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+
+                    <button onclick="execPreviewCommand('insertUnorderedList')" title="Unordered List" style="padding: 2px 4px;">├── List</button>
+                    <button onclick="execPreviewCommand('insertOrderedList')" title="Ordered List" style="padding: 2px 4px;">1── List</button>
+
+                    <span style="width: 1px; height: 16px; background: var(--ui-border, #1a1a1a); margin: 0 4px;"></span>
+
+                    <button onclick="const url = prompt('Enter target hyperlink URL:'); if(url) execPreviewCommand('createLink', url);" title="Insert Link" style="padding: 2px 4px;">🔗 Link</button>
+                    <button onclick="execPreviewCommand('unlink')" title="Remove Link" style="padding: 2px 4px;">Unlink</button>
                 </div>
 
                 <button onclick="runShadowTest()" id="verifyBtn" style="color: #f1c40f;">Verify</button>
@@ -130,7 +160,6 @@
             <div id="outputEditor" style="flex-grow: 1;"></div>
             <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: #fff;"></iframe>
         </div>
-
 
         <div class="modal-overlay" id="settingsModal" style="display: none;">
             <div class="modal-content settings-modal-content">
@@ -282,19 +311,182 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-searchbox.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/ace-linters@latest/build/ace-linters.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/mode-python.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-modelist.js"></script>
 
-        <!--//THE FOLLOWING MUST REMAIN "ui/themes.js"-->
-        <!--//without the leading '/'. Or things will break.-->
         <script src="ui/themes.js"></script>
         <script src="ui/client_bridge.js"></script>
-        <!--<script src="ui/script.js"></script>-->
         <script src="ui/js/globals.js"></script>
         <script src="ui/js/editor.js"></script>
         <script src="ui/js/filesystem.js"></script>
         <script src="ui/js/git.js"></script>
         <script src="ui/js/ai_core.js"></script>
         <script src="ui/js/settings.js"></script>
+
+        <script>
+            [editor, outputEditor].forEach(ed => {
+                ed.commands.addCommand({
+                    name: 'save',
+                    bindKey: {
+                        win: 'Ctrl-S', mac: 'Cmd-S'
+                    },
+                    exec: saveFile
+                });
+
+                // ADD THIS: Execution Macro for Ace Editor Focus
+                ed.commands.addCommand({
+                    name: 'runScript',
+                    bindKey: {
+                        win: 'Ctrl-Enter', mac: 'Cmd-Enter'
+                    },
+                    exec: function() {
+                        if (typeof executeActiveScript === 'function') {
+                            executeActiveScript();
+                        }
+                    }
+                });
+
+                // ADD THIS: Build Macro for Ace Editor Focus
+                ed.commands.addCommand({
+                    name: 'buildScript',
+                    bindKey: {
+                        win: 'Ctrl-B',
+                        mac: 'Cmd-B'
+                    },
+                    exec: function() {
+                        if (window.currentSelectedPath) {
+                            fetch('/api/build', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    path: window.currentSelectedPath
+                                })
+                            })
+                            .then(res => res.json())
+                            .then(d => console.log(`[BUILD RUNNER] Status: ${d.status}`));
+                        }
+                    }
+                });
+            });
+
+            // ==========================================
+            // CRUCIBLE CORE WEBSOCKET MULTIPLEXER
+            // ==========================================
+            (function() {
+                const socketProtocol = window.location.protocol === 'https:' ? 'wss://': 'ws://';
+                const socketUrl = socketProtocol + window.location.host;
+                const ws = new WebSocket(socketUrl);
+
+                // Expose the socket instance globally so peripheral interface modules can dispatch data strings
+                window.crucibleSocket = ws;
+
+                ws.onopen = () => {
+                    console.log("[SYSTEM] Unified communication pipeline operational.");
+
+                    // Force terminal geometric synchronization loop immediately following network layout connection
+                    if (typeof sendResize === 'function') {
+                        sendResize();
+                    }
+                };
+
+                ws.onmessage = (event) => {
+                    const rawData = event.data;
+
+                    // Traffic Router Guard: Intercept structured JSON telemetry strings safely
+                    if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
+                        try {
+                            const packet = JSON.parse(rawData);
+
+                            // Route the compiled data object over to the graphic status bars
+                            if (typeof window.handleCrucibleTelemetry === 'function') {
+                                window.handleCrucibleTelemetry(packet);
+
+                                // Terminate the execution path to protect the terminal from rendering raw JSON notation
+                                return;
+                            }
+                        } catch (e) {
+                            // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
+                        }
+                    }
+
+                    // Feed standard operating system shell strings straight into the terminal display matrix
+                    if (typeof term !== 'undefined' && term.write) {
+                        //term.write(rawData);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.warn("[SYSTEM] Communication pipeline dropped. Retrying interface connection...");
+                    const statusTextElement = document.getElementById('statusText');
+                    if (statusTextElement) {
+                        statusTextElement.innerText = "OFFLINE: BACKEND TERMINATED";
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    console.error("[NET FAILURE] Socket exceptions detected:", err);
+                };
+
+                // Connect the layout input framework back to the native shell loop
+                if (typeof term !== 'undefined' && term.onData) {
+                    term.onData((data) => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            // Wrap user keystrokes into the designated pty transaction payload frame
+                            ws.send(JSON.stringify({
+                                type: 'input',
+                                data: data
+                            }));
+                        }
+                    });
+                }
+
+                // Core keymap input matrix tracking implementation
+                window.addEventListener('keydown',
+                    function(e) {
+
+                        // Execution Macro: Ctrl+Enter (or Cmd+Enter)
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            if (typeof executeActiveScript === 'function') {
+                                executeActiveScript();
+                            }
+                        }
+
+                        // Build Macro: Ctrl+B (or Cmd+B)
+                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                            e.preventDefault();
+                            if (window.currentSelectedPath) {
+                                fetch('/api/build', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        path: window.currentSelectedPath
+                                    })
+                                })
+                                .then(res => res.json())
+                                .then(d => console.log(`[BUILD RUNNER] Macro deployment acknowledged: ${d.status}`));
+                            }
+                        }
+                    });
+
+                // Global resize dispatcher loops system geometry data down the active link
+                window.sendResize = function() {
+                    if (ws.readyState === WebSocket.OPEN && typeof term !== 'undefined') {
+                        ws.send(JSON.stringify({
+                            type: 'resize',
+                            cols: term.cols || 80,
+                            rows: term.rows || 24
+                        }));
+                    }
+                };
+            })();
+        </script>
     </body>
 </html>

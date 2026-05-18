@@ -9,9 +9,9 @@
       "selection": "#222222"
     },
     "ui": {
-      "base": "#111111",
-      "panel": "#121212",
-      "surface": "#121212",
+      "base": "#000000",
+      "panel": "#050505",
+      "surface": "#0a0a0a",
       "hover": "#111111",
       "borderDark": "#1a1a1a",
       "borderLight": "#222222",
