@@ -613,10 +613,14 @@
                 };
 
                 window.Crucible.modules.history = {
-                    // Fetches the list of snapshots for the active file
                     async list(activePath) {
                         const listContainer = document.getElementById('revisionList');
                         if (!listContainer) return;
+
+                        if (!activePath) {
+                            listContainer.innerHTML = '<div style="padding: 15px; color: var(--ui-text-dim); text-align: center; font-size: 11px;">No active file selected in the editor. Open a file first.</div>';
+                            return;
+                        }
 
                         listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">Scanning archives...</div>';
 
@@ -654,7 +658,6 @@
                         }
                     },
 
-                    // Fetches the specific snapshot content and triggers the UI
                     async compare(activePath, backupTarget) {
                         try {
                             const res = await fetch('/api/history/read', {
@@ -668,7 +671,6 @@
                             });
                             const data = await res.json();
 
-                            // Call the shared UI logic
                             window.launchDiffUI(activePath, backupTarget.timestamp, editor.getValue(), data.content);
                         } catch (e) {
                             console.error("Read snapshot failed:", e);
@@ -734,9 +736,20 @@
                                 });
                             });
 
-                        window.diffState.leftEd.setValue(archiveText, -1);
-                        window.diffState.rightEd.setValue(liveText, -1);
+                        // BUFFER EQUALIZATION (TOTAL LENGTH FIX)
+                        const leftLines = archiveText.split(/\r\n|\r|\n/).length;
+                        const rightLines = liveText.split(/\r\n|\r|\n/).length;
+                        const maxLines = Math.max(leftLines, rightLines);
 
+                        // CRITICAL FIX: Inject a space before the newline (' \n')
+                        // so Ace Editor does not cull the trailing empty lines
+                        const padLeft = maxLines > leftLines ? ' \n'.repeat(maxLines - leftLines): '';
+                        const padRight = maxLines > rightLines ? ' \n'.repeat(maxLines - rightLines): '';
+
+                        window.diffState.leftEd.setValue(archiveText + padLeft, -1);
+                        window.diffState.rightEd.setValue(liveText + padRight, -1);
+
+                        // Standard 1:1 Scroll Sync
                         const sync = (source, target) => {
                             source.session.on('changeScrollTop', (pos) => {
                                 if (window.diffState.isSyncing) return;
@@ -751,6 +764,7 @@
                         sync(window.diffState.rightEd,
                             window.diffState.leftEd);
 
+                        // Run Diff Highlight on raw text to prevent marking the blank lines
                         if (typeof Diff !== 'undefined') {
                             const Range = ace.require('ace/range').Range;
                             const diffs = Diff.diffLines(archiveText, liveText);
