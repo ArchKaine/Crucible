@@ -77,6 +77,10 @@ function initTerminalSocket() {
     };
 }
 
+function getPathSeparator(path) {
+    return path.includes('\\') ? '\\': '/';
+}
+
 // Start the initial connection when the script loads
 initTerminalSocket();
 

@@ -1,3 +1,14 @@
+function switchSidebar(view) {
+    document.querySelectorAll('.sidebar-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.sidebar-tabs button').forEach(b => b.classList.remove('active'));
+
+    const targetView = document.getElementById(`view-${view}`);
+    const targetTab = document.getElementById(`tab-${view}`);
+
+    if (targetView) targetView.classList.add('active');
+    if (targetTab) targetTab.classList.add('active');
+}
+
 async function shutdownCrucible() {
     if (!confirm("Initiate total system shutdown?")) return;
     term.write('\r\n\x1b[31m[SYSTEM] Commencing Forge shutdown sequence...\x1b[0m\r\n');
@@ -9,6 +20,7 @@ async function shutdownCrucible() {
         term.write('\r\n\x1b[31m[ERROR] Shutdown signal failed.\x1b[0m\r\n');
     }
 }
+
 function updateSystemStatus(percent, message, isError = false) {
     const fill = document.getElementById('progressFill');
     const status = document.getElementById('coreStatus');
@@ -25,29 +37,7 @@ function updateSystemStatus(percent, message, isError = false) {
         }, 2000);
     }
 }
-function switchSidebar(viewName) {
-    const views = document.querySelectorAll('.sidebar-view');
-    const tabs = document.querySelectorAll('.sidebar-tabs button');
 
-    views.forEach(v => v.classList.remove('active'));
-    tabs.forEach(b => b.classList.remove('active'));
-
-    const targetView = document.getElementById(`view-${viewName}`);
-    const targetTab = document.getElementById(`tab-${viewName}`);
-
-    if (targetView && targetTab) {
-        targetView.classList.add('active');
-        targetTab.classList.add('active');
-    } else {
-        document.getElementById('view-explorer')?.classList.add('active');
-        document.getElementById('tab-explorer')?.classList.add('active');
-        return;
-    }
-
-    if (viewName === 'git') {
-        if (typeof refreshGitStatus === 'function') refreshGitStatus();
-    }
-}
 function toggleCustomThemeEditor() {
     const themeId = document.getElementById('set-theme').value;
     const customEditor = document.getElementById('customThemeEditor');
@@ -74,6 +64,7 @@ function toggleCustomThemeEditor() {
         document.getElementById('customThemeName').value = '';
     }
 }
+
 function populateThemeDropdown() {
     const select = document.getElementById('set-theme');
     const currentVal = select.value;
@@ -102,6 +93,7 @@ function populateThemeDropdown() {
         select.value = currentVal;
     }
 }
+
 async function saveCustomThemeToDisk() {
     const name = document.getElementById('customThemeName').value.trim() || 'My Custom Theme';
     const id = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -173,6 +165,7 @@ async function saveCustomThemeToDisk() {
         term.write('\r\n\x1b[31m[ERROR] Failed to write theme to disk.\x1b[0m\r\n');
     }
 }
+
 function applySettings(config) {
     const isCustomUnsaved = config.theme === 'custom';
     let t = (window.CrucibleThemes && window.CrucibleThemes[config.theme]) || (window.userThemes && window.userThemes[config.theme]) || (window.CrucibleThemes && window.CrucibleThemes.twilight);
@@ -238,6 +231,7 @@ function applySettings(config) {
     }
     fitAddon.fit();
 }
+
 async function loadSettings() {
     try {
         // 1. Fetch Themes (Isolated so failure doesn't halt core settings)
@@ -304,6 +298,7 @@ async function loadSettings() {
         console.error("[SETTINGS] Fatal load error:", e);
     }
 }
+
 async function saveSettings() {
     const config = {
         theme: document.getElementById('set-theme').value,
@@ -396,6 +391,7 @@ async function saveSettings() {
         term.write(`\r\n\x1b[31m[ERROR] Synchronization failed: ${e.message}\x1b[0m\r\n`);
     }
 }
+
 function openSettings() {
     const modal = document.getElementById('settingsModal');
     if (modal) {
@@ -404,12 +400,14 @@ function openSettings() {
         console.error("[UI ERROR] Cannot open settings: '#settingsModal' not found in the DOM.");
     }
 }
+
 function closeSettings() {
     const modal = document.getElementById('settingsModal');
     if (modal) {
         modal.style.display = 'none';
     }
 }
+
 function switchSettingsTab(event, paneId) {
     // Hide all panes
     const panes = document.querySelectorAll('.tab-pane');
@@ -423,3 +421,4 @@ function switchSettingsTab(event, paneId) {
     document.getElementById(paneId).classList.add('active');
     event.currentTarget.classList.add('active');
 }
+

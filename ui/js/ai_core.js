@@ -18,6 +18,7 @@ async function runAutomatedTests() {
         updateSystemStatus(0, "Test Error", true);
     }
 }
+
 async function askAI() {
     const input = document.getElementById('aiInput');
     const directive = input.value.trim();
@@ -68,6 +69,7 @@ async function askAI() {
         input.value = '';
     }
 }
+
 async function runShadowTest() {
     if (!currentOpenPath) return;
     const content = outputEditor.getValue();
@@ -111,6 +113,7 @@ async function runShadowTest() {
         ind.style.backgroundColor = '#f44336';
     }
 }
+
 function validateWebCode(content, type) {
     if (type === 'html') {
         const parser = new DOMParser();
@@ -143,6 +146,7 @@ function validateWebCode(content, type) {
         success: true
     };
 }
+
 function applyDiffMerge() {
     if (outputEditor.getValue().length < editor.getValue().length * 0.7) {
         if (!confirm("AI output is significantly shorter. Potential gutting detected. Proceed?")) return;
@@ -150,6 +154,7 @@ function applyDiffMerge() {
     editor.setValue(outputEditor.getValue(), -1);
     term.write(`\r\n\x1b[34m[SYSTEM] Merge applied.\x1b[0m\r\n`);
 }
+
 async function startIndexing() {
     const statusEl = document.getElementById('coreStatus');
     statusEl.innerText = "Targeting Vector Arrays...";

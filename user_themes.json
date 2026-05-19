@@ -9,29 +9,17 @@
       "selection": "#222222"
     },
     "ui": {
-<<<<<<< HEAD
-<<<<<<< HEAD
       "base": "#121212",
-      "panel": "#1b1b1b",
-      "surface": "#1b1b1b",
-=======
-      "base": "#0a0a0a",
-      "panel": "#121212",
-      "surface": "#111111",
->>>>>>> 4db95c6 (More updates)
-=======
-      "base": "#000000",
-      "panel": "#050505",
-      "surface": "#0a0a0a",
->>>>>>> 758864b (Huge changes. Working on python integration.)
-      "hover": "#111111",
-      "borderDark": "#1a1a1a",
-      "borderLight": "#222222",
+      "panel": "#242424",
+      "surface": "#1f1f1f",
+      "hover": "#2d2d2d",
+      "borderDark": "#5e5c64",
+      "borderLight": "#1f1f1f",
       "textDim": "#77767b",
       "textMuted": "#77767b",
       "textMain": "#deddda",
       "textBright": "#ffffff",
-      "accent": "#e01b24"
+      "accent": "#9d0000"
     }
   }
 }
