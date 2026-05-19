@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Crucible IDE | Industrial Forge</title>
+    <title>Crucible IDE | The Forge</title>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
-    <link rel="stylesheet" href="ui/style.css">
+    <link rel="stylesheet" href="/ui/style.css">
 </head>
 <body>
     <div class="sidebar" id="mainSidebar">
         <div class="sidebar-tabs">
             <button id="tab-explorer" class="active" onclick="switchSidebar('explorer')">EXPLORER</button>
             <button id="tab-git" onclick="switchSidebar('git')">SOURCE CONTROL</button>
+            <button id="tab-history" onclick="switchSidebar('history'); Crucible.modules.history.list(window.currentOpenPath);">HISTORY</button>
         </div>
 
         <div id="view-explorer" class="sidebar-view active">
@@ -63,7 +64,6 @@
             <div id="view-history" class="sidebar-view">
                 <div class="git-header">
                     <span>REVISION ARCHIVE</span>
-                    <button onclick="clearRevisionLog()" title="Purge local temporal logs" style="padding: 2px 5px;">PURGE</button>
                 </div>
                 <div id="revisionList" class="git-list"></div>
             </div>
@@ -100,9 +100,11 @@
                 <button onclick="editor.execCommand('find')" title="Find / Replace (Ctrl+F)">🔍 FIND</button>
                 <button onclick="editor.toggleCommentLines()" title="Toggle Line Comment (Ctrl+/)">// COMMENT</button>
                 <button onclick="triggerManualFormat()" title="Format Document">▤ FORMAT</button>
+                <button onclick="switchSidebar('history'); Crucible.modules.history.list(window.currentOpenPath);" title="View Timeline" style="color: var(--ui-accent); font-weight: bold;">⏱ TIMELINE</button>
                 <span style="width: 10px;"></span>
                 <button onclick="toggleSplitView()" id="splitBtn" title="Toggle Dual-Buffer" class="active">◫ SPLIT</button>
                 <button onclick="toggleTerminal()" id="termBtn" title="Toggle Terminal" class="active">🖵 TERM</button>
+                <button id="inspectorToggleBtn" class="action-btn" onclick="toggleInspector()" title="Toggle Inspect/Edit Mode">Inspect UI</button>
             </div>
 
             <div id="codeEditor" style="flex-grow: 1;"></div>
@@ -316,15 +318,15 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/mode-python.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-modelist.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
 
-        <script src="ui/themes.js"></script>
-        <script src="ui/client_bridge.js"></script>
-        <script src="ui/js/globals.js"></script>
-        <script src="ui/js/editor.js"></script>
-        <script src="ui/js/filesystem.js"></script>
-        <script src="ui/js/git.js"></script>
-        <script src="ui/js/ai_core.js"></script>
-        <script src="ui/js/settings.js"></script>
+        <script src="/ui/js/globals.js"></script>
+        <script src="/ui/themes.js"></script>
+        <script src="/ui/js/editor.js"></script>
+        <script src="/ui/js/filesystem.js"></script>
+        <script src="/ui/js/git.js"></script>
+        <script src="/ui/js/ai_core.js"></script>
+        <script src="/ui/js/settings.js"></script>
 
         <script>
             [editor, outputEditor].forEach(ed => {
@@ -335,7 +337,8 @@
                     },
                     exec: saveFile
                 });
-                // ADD THIS: Execution Macro for Ace Editor Focus
+
+                // Execution Macro for Ace Editor Focus
                 ed.commands.addCommand({
                     name: 'runScript',
                     bindKey: {
@@ -348,7 +351,7 @@
                     }
                 });
 
-                // ADD THIS: Build Macro for Ace Editor Focus
+                // Build Macro for Ace Editor Focus
                 ed.commands.addCommand({
                     name: 'buildScript',
                     bindKey: {
@@ -444,6 +447,153 @@
                     });
                 }
 
+                // Core keymap input matrix tracking implementation
+                window.addEventListener('keydown',
+                    function(e) {
+
+                        // Execution Macro: Ctrl+Enter (or Cmd+Enter)
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            if (typeof executeActiveScript === 'function') {
+                                executeActiveScript();
+                            }
+                        }
+
+                        // Build Macro: Ctrl+B (or Cmd+B)
+                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                            e.preventDefault();
+                            if (window.currentSelectedPath) {
+                                fetch('/api/build', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        path: window.currentSelectedPath
+                                    })
+                                })
+                                .then(res => res.json())
+                                .then(d => console.log(`[BUILD RUNNER] Macro deployment acknowledged: ${d.status}`));
+                            }
+                        }
+                    });
+
+                // ==========================================
+                // PREVIEW & INSPECTOR TOGGLE
+                // ==========================================
+
+                window.inspectorActive = false;
+
+                window.toggleInspector = function() {
+                    window.inspectorActive = !window.inspectorActive;
+
+                    const btn = document.getElementById('inspectorToggleBtn');
+                    if (btn) btn.classList.toggle('active', window.inspectorActive);
+
+                    if (typeof isPreviewActive !== 'undefined' && isPreviewActive) {
+                        const frame = document.getElementById('previewFrame');
+                        if (frame && typeof editor !== 'undefined') {
+                            const doc = frame.contentDocument || frame.contentWindow.document;
+
+                            // 1. Force a complete document wipe to kill sticky designMode and ghost event listeners
+                            doc.open();
+                            doc.write(editor.getValue());
+                            doc.close();
+
+                            // 2. Apply the correct ruleset to the freshly built document
+                            if (typeof window.injectPreviewInspectorRules === 'function') {
+                                window.injectPreviewInspectorRules(doc);
+                            }
+                        }
+                    }
+
+                    if (typeof term !== 'undefined') {
+                        term.write(`\r\n\x1b[36m[SYSTEM] Mode: ${window.inspectorActive ? 'DESIGN': 'INTERACT'}\x1b[0m\r\n`);
+                    }
+                };
+
+                // Attach to window to guarantee scope parity
+                window.injectPreviewInspectorRules = function(targetDocument) {
+                    if (!targetDocument || !targetDocument.body) return;
+
+                    if (window.inspectorActive) {
+                        targetDocument.designMode = "on";
+                        targetDocument.body.contentEditable = "true";
+                    } else {
+                        targetDocument.designMode = "off";
+                        targetDocument.body.contentEditable = "false";
+                        // CRITICAL: Halt execution immediately. No styles or event listeners are injected.
+                        return;
+                    }
+
+                    const styleNode = targetDocument.createElement('style');
+                    styleNode.id = 'crucible-inspector-styles';
+                    styleNode.innerHTML = `
+                    *[data-crucible-inspecting="true"] {
+                    outline: 2px dashed #3498db !important;
+                    outline-offset: -2px;
+                    cursor: text !important;
+                    }
+                    `;
+                    targetDocument.head.appendChild(styleNode);
+
+                    targetDocument.body.addEventListener('input', () => {
+                        if (typeof editor === 'undefined' || !window.inspectorActive) return;
+
+                        if (typeof isSyncingFromIframe !== 'undefined') isSyncingFromIframe = true;
+
+                        const originalCode = editor.getValue();
+                        const hasHtmlWrapper = originalCode.toLowerCase().includes('<html') || originalCode.toLowerCase().includes('<body');
+
+                        let updatedContent = "";
+                        if (hasHtmlWrapper) {
+                            const clone = targetDocument.documentElement.cloneNode(true);
+                            const instStyle = clone.querySelector('#crucible-inspector-styles');
+                            if (instStyle) instStyle.remove();
+                            clone.querySelectorAll('[data-crucible-inspecting]').forEach(el => el.removeAttribute('data-crucible-inspecting'));
+                            updatedContent = clone.outerHTML;
+                        } else {
+                            const cloneBody = targetDocument.body.cloneNode(true);
+                            const instStyle = cloneBody.querySelector('#crucible-inspector-styles');
+                            if (instStyle) instStyle.remove();
+                            cloneBody.querySelectorAll('[data-crucible-inspecting]').forEach(el => el.removeAttribute('data-crucible-inspecting'));
+                            updatedContent = cloneBody.innerHTML;
+                        }
+
+                        const cursorPosition = editor.getCursorPosition();
+                        editor.setValue(updatedContent, -1);
+                        editor.moveCursorToPosition(cursorPosition);
+
+                        if (typeof isSyncingFromIframe !== 'undefined') isSyncingFromIframe = false;
+                    });
+
+                    targetDocument.body.addEventListener('click',
+                        (e) => {
+                            if (!window.inspectorActive) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const searchString = e.target.outerHTML.split('>')[0];
+                            if (typeof matchTargetNodeBackToCodeSource === 'function') {
+                                matchTargetNodeBackToCodeSource(searchString);
+                            }
+                        },
+                        true);
+
+                    targetDocument.body.addEventListener('mouseover',
+                        (e) => {
+                            if (!window.inspectorActive) return;
+                            e.target.setAttribute('data-crucible-inspecting', 'true');
+                        },
+                        true);
+
+                    targetDocument.body.addEventListener('mouseout',
+                        (e) => {
+                            if (!window.inspectorActive) return;
+                            e.target.removeAttribute('data-crucible-inspecting');
+                        },
+                        true);
+                };
+
                 // Global resize dispatcher loops system geometry data down the active link
                 window.sendResize = function() {
                     if (ws.readyState === WebSocket.OPEN && typeof term !== 'undefined') {
@@ -454,6 +604,197 @@
                         }));
                     }
                 };
+
+                window.Crucible = window.Crucible || {
+                    modules: {
+                        history: {},
+                        diff: {}
+                    }
+                };
+
+                window.Crucible.modules.history = {
+                    // Fetches the list of snapshots for the active file
+                    async list(activePath) {
+                        const listContainer = document.getElementById('revisionList');
+                        if (!listContainer) return;
+
+                        listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">Scanning archives...</div>';
+
+                        try {
+                            const res = await fetch('/api/history/list', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    path: activePath
+                                })
+                            });
+                            const data = await res.json();
+
+                            if (!data.backups || data.backups.length === 0) {
+                                listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">No snapshots found.</div>';
+                                return;
+                            }
+
+                            listContainer.innerHTML = '';
+                            data.backups.forEach(backup => {
+                                const item = document.createElement('div');
+                                item.className = 'history-item';
+                                item.style.cssText = 'padding: 8px; border-bottom: 1px solid var(--ui-border-dark); cursor: pointer;';
+                                item.innerHTML = `
+                                <div style="font-size: 11px; color: var(--ui-text-main)">${backup.timestamp.replace(/_/g, ' ')}</div>
+                                <button style="margin-top: 5px; width: 100%; border: 1px solid var(--ui-accent); background: transparent; color: var(--ui-accent); cursor: pointer;">COMPARE</button>
+                                `;
+                                item.onclick = () => this.compare(activePath, backup);
+                                listContainer.appendChild(item);
+                            });
+                        } catch (e) {
+                            console.error("History list failed:", e);
+                        }
+                    },
+
+                    // Fetches the specific snapshot content and triggers the UI
+                    async compare(activePath, backupTarget) {
+                        try {
+                            const res = await fetch('/api/history/read', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    path: backupTarget.path
+                                })
+                            });
+                            const data = await res.json();
+
+                            // Call the shared UI logic
+                            window.launchDiffUI(activePath, backupTarget.timestamp, editor.getValue(), data.content);
+                        } catch (e) {
+                            console.error("Read snapshot failed:", e);
+                        }
+                    }
+                };
+
+                window.Crucible.modules.diff = {
+                    init(fileName, timestamp, liveText, archiveText) {
+                        window.diffState = window.diffState || {
+                            isSyncing: false,
+                            leftEd: null,
+                            rightEd: null
+                        };
+
+                        let diffContainer = document.getElementById('crucible-diff-overlay');
+                        if (diffContainer) {
+                            if (window.diffState.leftEd) window.diffState.leftEd.destroy();
+                            if (window.diffState.rightEd) window.diffState.rightEd.destroy();
+                            diffContainer.remove();
+                        }
+
+                        diffContainer = document.createElement('div');
+                        diffContainer.id = 'crucible-diff-overlay';
+                        diffContainer.style.cssText = `
+                        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                        background: var(--ui-bg-base); z-index: 9999;
+                        display: flex; flex-direction: column;
+                        `;
+                        document.body.appendChild(diffContainer);
+
+                        diffContainer.innerHTML = `
+                        <style>
+                        .diff-marker-add { background: rgba(46, 204, 113, 0.25) !important; position: absolute; z-index: 20; }
+                        .diff-marker-remove { background: rgba(231, 76, 60, 0.25) !important; position: absolute; z-index: 20; }
+                        </style>
+                        <div style="padding: 10px; background: var(--ui-bg-panel); border-bottom: 1px solid var(--ui-border-dark); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--ui-text-bright); font-weight: bold; letter-spacing: 1px;">DIFF: ${fileName}</span>
+                        <button onclick="window.closeDiffUI()" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold;">CLOSE</button>
+                        </div>
+                        <div style="display: flex; flex: 1; overflow: hidden; min-height: 0;">
+                        <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--ui-border-dark); min-width: 0;">
+                        <div style="padding: 5px; background: var(--ui-bg-surface); text-align: center; font-size: 10px;">ARCHIVE [${timestamp}]</div>
+                        <div id="diff-left-editor" style="flex: 1;"></div>
+                        </div>
+                        <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                        <div style="padding: 5px; background: var(--ui-bg-surface); text-align: center; font-size: 10px; color: var(--ui-accent);">LIVE WORKSPACE</div>
+                        <div id="diff-right-editor" style="flex: 1;"></div>
+                        </div>
+                        </div>
+                        `;
+
+                        window.diffState.leftEd = ace.edit("diff-left-editor");
+                        window.diffState.rightEd = ace.edit("diff-right-editor");
+
+                        [window.diffState.leftEd,
+                            window.diffState.rightEd].forEach(ed => {
+                                ed.setTheme(editor.getTheme());
+                                ed.session.setMode(editor.session.getMode().$id);
+                                ed.setReadOnly(true);
+                                ed.setOptions({
+                                    showFoldWidgets: false, printMargin: false
+                                });
+                            });
+
+                        window.diffState.leftEd.setValue(archiveText, -1);
+                        window.diffState.rightEd.setValue(liveText, -1);
+
+                        const sync = (source, target) => {
+                            source.session.on('changeScrollTop', (pos) => {
+                                if (window.diffState.isSyncing) return;
+                                window.diffState.isSyncing = true;
+                                target.session.setScrollTop(pos);
+                                window.diffState.isSyncing = false;
+                            });
+                        };
+
+                        sync(window.diffState.leftEd,
+                            window.diffState.rightEd);
+                        sync(window.diffState.rightEd,
+                            window.diffState.leftEd);
+
+                        if (typeof Diff !== 'undefined') {
+                            const Range = ace.require('ace/range').Range;
+                            const diffs = Diff.diffLines(archiveText, liveText);
+                            let leftRow = 0,
+                            rightRow = 0;
+                            diffs.forEach(part => {
+                                if (part.added) {
+                                    window.diffState.rightEd.session.addMarker(new Range(rightRow, 0, rightRow + part.count - 1, 1), "diff-marker-add", "fullLine");
+                                    rightRow += part.count;
+                                } else if (part.removed) {
+                                    window.diffState.leftEd.session.addMarker(new Range(leftRow, 0, leftRow + part.count - 1, 1), "diff-marker-remove", "fullLine");
+                                    leftRow += part.count;
+                                } else {
+                                    leftRow += part.count; rightRow += part.count;
+                                }
+                            });
+                        }
+                    }
+                };
+
+                window.closeDiffUI = function() {
+                    const el = document.getElementById('crucible-diff-overlay');
+                    if (el) {
+                        if (window.diffState && window.diffState.leftEd) window.diffState.leftEd.destroy();
+                        if (window.diffState && window.diffState.rightEd) window.diffState.rightEd.destroy();
+                        el.remove();
+                    }
+                };
+
+                window.launchDiffUI = window.Crucible.modules.diff.init;
+
+                // ==========================================
+                // PWA & LOCAL ASSET CACHING ENGINE
+                // ==========================================
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js').then(registration => {
+                            console.log('\x1b[36m[SYSTEM] Local asset cache active. Scope: \x1b[0m' + registration.scope);
+                        }).catch(error => {
+                            console.error('[SYSTEM] Asset cache mapping failed:', error);
+                        });
+                    });
+                }
+
             })();
         </script>
     </body>

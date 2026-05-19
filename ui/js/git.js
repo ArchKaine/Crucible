@@ -18,6 +18,7 @@ async function refreshGitStatus() {
         list.innerHTML = `<div style="color: #e74c3c;">GIT OFFLINE</div>`;
     }
 }
+
 function createGitItem(item, isStaged) {
     const div = document.createElement('div');
     div.className = 'git-item';
@@ -27,6 +28,7 @@ function createGitItem(item, isStaged) {
     <button onclick="gitAction('${action}', '${item.file}')">${isStaged ? '-': '+'}</button>`;
     return div;
 }
+
 async function gitAction(action, file = '') {
     try {
         const res = await fetch('/api/git/action', {
@@ -57,6 +59,7 @@ async function gitAction(action, file = '') {
 
     refreshGitStatus();
 }
+
 async function createBranch() {
     const branchName = prompt("ENTER NEW FEATURE BRANCH NAME:");
     if (!branchName) return;
@@ -70,6 +73,7 @@ async function createBranch() {
         term.write(`\r\n\x1b[31m[GIT ERR] BRANCH ALLOCATION FAILED.\x1b[0m\r\n`);
     }
 }
+
 async function mergeBranch() {
     const target = prompt("MERGE WHICH BRANCH INTO CURRENT?");
     if (!target) return;
@@ -97,10 +101,12 @@ async function mergeBranch() {
         term.write(`\r\n\x1b[31m[ERROR] MERGE HANDSHAKE TIMED OUT.\x1b[0m\r\n`);
     }
 }
+
 async function initGitRepo() {
     if (!confirm(`Initialize empty Git repository in ${currentDirectory}?`)) return;
     await gitAction('init');
 }
+
 async function commitChanges() {
     const msgInput = document.getElementById('commitMessage');
     const message = msgInput.value.trim();
@@ -126,3 +132,4 @@ async function commitChanges() {
         term.write(`\r\n\x1b[31m[GIT ERROR] Commit failed: ${e.message}\x1b[0m\r\n`);
     }
 }
+

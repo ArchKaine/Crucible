@@ -122,6 +122,35 @@ body.dragging * {
     background: transparent;
 }
 
+/* --- THE ASYMMETRIC INVISIBLE HITBOXES --- */
+#resizer-sb::after, #resizer-ed::after, .resizer-v::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    /* Pins directly to the visual line split */
+    width: 14px;
+    /* Generates the active grab zone rightward, clearing the left-side scrollbars */
+    cursor: col-resize;
+    z-index: 101;
+    background: transparent;
+}
+
+#resizer-tm::after, .resizer-h::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    /* Pins directly to the visual line split */
+    height: 14px;
+    /* Generates the active grab zone downward into the terminal window top-dead space */
+    cursor: row-resize;
+    z-index: 101;
+    background: transparent;
+}
+
 .sidebar {
     grid-area: sidebar;
     background: var(--ui-bg-surface);
@@ -165,7 +194,7 @@ body.dragging * {
 
 #pathUI {
     background: var(--ui-bg-panel);
-    border: 1px solid var(--ui-border-dark);
+    border: 1px solid var(--ui-bg-hover);
     margin-bottom: 10px;
     padding: 5px;
     display: flex;
@@ -197,6 +226,7 @@ body.dragging * {
     outline: none;
     width: 100%;
     box-sizing: border-box;
+    >>>>>>> 4db95c6 (More updates)
 }
 
 #searchContainer {
@@ -213,7 +243,11 @@ body.dragging * {
     max-height: 200px;
     overflow-y: auto;
     font-size: 11px;
+    <<<<<<< HEAD
     border-top: 1px solid var(--ui-border-dark);
+    =======
+    border-top: 1px solid var(--ui-bg-hover);
+    >>>>>>> 4db95c6 (More updates)
     display: none;
 }
 
@@ -253,7 +287,11 @@ body.dragging * {
     padding-left: 14px;
     margin: 0;
     display: none;
+    <<<<<<< HEAD
     border-left: 1px solid var(--ui-border-dark);
+    =======
+    border-left: 1px solid var(--ui-bg-hover);
+    >>>>>>> 4db95c6 (More updates)
 }
 
 #fileList ul.expanded {
@@ -314,6 +352,8 @@ body.dragging * {
     border-left: 1px solid var(--ui-border-dark);
     min-width: 0;
     min-height: 0;
+    <<<<<<< HEAD
+    =======
 }
 
 .controls {
@@ -324,6 +364,7 @@ body.dragging * {
     border-bottom: 1px solid var(--ui-border-dark);
     align-items: center;
     flex-wrap: wrap;
+    >>>>>>> 4db95c6 (More updates)
 }
 
 #tabBar {
@@ -383,7 +424,11 @@ body.dragging * {
 #statusBar {
     flex-grow: 1;
     background: var(--ui-bg-base);
+    <<<<<<< HEAD
     height: 24px;
+    =======
+    height: 26px;
+    >>>>>>> 4db95c6 (More updates)
     border: 1px solid var(--ui-border-dark);
     position: relative;
     overflow: hidden;
@@ -423,6 +468,13 @@ body.dragging * {
     border-top: 1px solid var(--ui-border-dark);
     position: relative;
     overflow: hidden;
+    <<<<<<< HEAD
+    <<<<<<< HEAD
+    =======
+    /* Removed padding: 5px; to prevent xterm math corruption */
+    >>>>>>> 4db95c6 (More updates)
+    =======
+    >>>>>>> 758864b (Huge changes. Working on python integration.)
 }
 
 #terminalBox {
@@ -431,7 +483,27 @@ body.dragging * {
     bottom: 5px;
     left: 5px;
     right: 5px;
+    <<<<<<< HEAD
+    <<<<<<< HEAD
     overflow: hidden;
+    =======
+    /* Restores the 5px gap safely */
+    =======
+    >>>>>>> 758864b (Huge changes. Working on python integration.)
+    overflow: hidden;
+}
+
+#terminalBox > .xterm {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+#terminalBox .xterm-viewport {
+    overflow-y: auto !important;
+    >>>>>>> 4db95c6 (More updates)
 }
 
 #terminalBox > .xterm {
@@ -600,10 +672,18 @@ select option, .controls select option, #viewportControls select option {
     background: var(--ui-border-light);
 }
 
-.status-M { color: #f1c40f; }
-.status-A { color: #2ecc71; }
-.status-D { color: #e74c3c; }
-.status-U { color: #3498db; }
+.status-M {
+    color: #f1c40f;
+}
+.status-A {
+    color: #2ecc71;
+}
+.status-D {
+    color: #e74c3c;
+}
+.status-U {
+    color: #3498db;
+}
 
 .modal-overlay {
     position: fixed;
@@ -629,6 +709,26 @@ select option, .controls select option, #viewportControls select option {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
     border-radius: 4px;
 }
+
+/* --- ORPHANED BY TAB REFACTOR ---
+ * .modal-header {
+ * display: flex;
+ * justify-content: space-between;
+ * align-items: center;
+ * border-bottom: 1px solid var(--ui-border-dark);
+ * padding-bottom: 10px;
+ * }
+ *
+ * .modal-header h3 {
+ * margin: 0;
+ * color: var(--ui-text-bright);
+ * font-size: 12px;
+ * text-transform: uppercase;
+ * letter-spacing: 1px;
+ * border-top-left-radius: 12px;
+ * border-top-right-radius: 12px;
+ * }
+ * ----------------------------------- */
 
 .close-btn {
     cursor: pointer;
@@ -797,6 +897,10 @@ select option, .controls select option, #viewportControls select option {
     color: var(--ui-text-bright) !important;
     border-left: 2px solid var(--ui-accent);
     padding-left: 4px;
+    <<<<<<< HEAD
+    =======
+    /* Adjusts for the border width to prevent text shifting */
+    >>>>>>> 758864b (Huge changes. Working on python integration.)
 }
 
 /* Visual marker indicating an active debugger breakpoint node */
@@ -808,10 +912,11 @@ select option, .controls select option, #viewportControls select option {
     width: 8px !important;
     height: 8px !important;
     display: inline-block;
+    <<<<<<< HEAD
 }
 
 /* ==========================================
-   VIEWPORT & PREVIEW FORMAT CONTROLS
+    VIEWPORT & PREVIEW FORMAT CONTROLS
    ========================================== */
 #viewportControls {
     background: var(--ui-bg-panel);
@@ -841,4 +946,27 @@ select option, .controls select option, #viewportControls select option {
     background: var(--ui-border-light);
     margin: 0 6px;
     display: inline-block;
+}
+
+/* Locate your Diff-Viewer wrapper class (e.g., .diff-viewer-wrapper) */
+.diff-viewer-wrapper {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    /* Ensure it fills available space */
+    width: 100%;
+    overflow: hidden;
+    /* Do not let the wrapper scroll */
+}
+
+/* Force the children (the editors) to occupy available width/height */
+.diff-viewer-wrapper > div {
+    flex: 1;
+    /* Both editors share space equally */
+    height: 100%;
+    /* Occupy full height of the parent */
+    min-height: 0;
+    /* CRITICAL: Allows children to be smaller than the parent */
+    overflow: hidden;
+    /* ACE handles internal scrolling */
 }
