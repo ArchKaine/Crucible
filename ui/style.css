@@ -970,3 +970,21 @@ select option, .controls select option, #viewportControls select option {
     overflow: hidden;
     /* ACE handles internal scrolling */
 }
+
+.forge-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.forge-btn:hover {
+    background: #333;
+    color: #fff;
+    border-color: #666;
+}

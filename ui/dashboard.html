@@ -1,13 +1,12 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Crucible IDE | The Forge</title>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
     <link rel="stylesheet" href="/ui/style.css">
 </head>
-<body>
-    <div class="sidebar" id="mainSidebar">
+<body contenteditable="true">
+    w<div class="sidebar" id="mainSidebar">
         <div class="sidebar-tabs">
             <button id="tab-explorer" class="active" onclick="switchSidebar('explorer')">EXPLORER</button>
             <button id="tab-git" onclick="switchSidebar('git')">SOURCE CONTROL</button>
@@ -16,349 +15,515 @@
 
         <div id="view-explorer" class="sidebar-view active">
             <div class="toolbar">
-                <button onclick="goBack()" title="Back"><</button>
-                    <button onclick="goForward()" title="Forward">></button>
-                    <button onclick="goUp()" title="Parent Directory">^</button>
-                    <button onclick="loadTree(currentDirectory)" title="Refresh Tree">⟳</button>
-                </div>
-
-                <div id="pathUI">
-                    <div id="breadcrumb"></div>
-                    <input type="text" id="manualPath" placeholder="Navigate to..." onkeydown="if(event.key==='Enter') loadTree(this.value)">
-                </div>
-
-                <div class="toolbar">
-                    <button onclick="renameItem()" title="Rename Selection">REN</button>
-                    <button onclick="deleteItem()" title="Delete Selection">DEL</button>
-                    <button onclick="createNewFile()" title="New File">✚ FILE</button>
-                    <button onclick="createNewFolder()" title="New Folder">✚ DIR</button>
-                </div>
-
-                <div id="searchContainer">
-                    <div style="display: flex; gap: 4px;">
-                        <input type="text" id="globalSearchInput" placeholder="GLOBAL GREP..." style="flex-grow: 1;" onkeydown="if(event.key==='Enter') runGlobalSearch()">
-                        <button onclick="runGlobalSearch()">SCAN</button>
-                    </div>
-                    <div id="searchResults"></div>
-                </div>
-
-                <div id="fileList"></div>
+                <button onclick="goBack()" title="Back">&lt;</button>
+                <button onclick="goForward()" title="Forward">&gt;</button>
+                <button onclick="goUp()" title="Parent Directory">^</button>
+                <button onclick="loadTree(currentDirectory)" title="Refresh Tree">⟳</button>
             </div>
 
-            <div id="view-git" class="sidebar-view">
-                <div class="git-controls">
-                    <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: var(--ui-accent);">INITIALIZE REPO (GIT INIT)</button>
-                    <input type="text" id="commitMessage" placeholder="Commit message...">
-                    <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
-                </div>
-
-                <div class="toolbar" style="margin-top: 10px;">
-                    <button onclick="gitAction('pull')" title="Pull from Remote">PULL ↓</button>
-                    <button onclick="gitAction('push')" title="Push to Remote">PUSH ↑</button>
-                    <button onclick="refreshGitStatus()" title="Refresh Status">⟳</button>
-                </div>
-
-                <div id="gitStatusList" class="git-list"></div>
+            <div id="pathUI">
+                <div id="breadcrumb"></div>
+                <input type="text" id="manualPath" placeholder="Navigate to..." onkeydown="if(event.key==='Enter') loadTree(this.value)">
             </div>
 
-            <div id="view-history" class="sidebar-view">
-                <div class="git-header">
-                    <span>REVISION ARCHIVE</span>
+            <div class="toolbar">
+                <button onclick="renameItem()" title="Rename Selection">REN</button>
+                <button onclick="deleteItem()" title="Delete Selection">DEL</button>
+                <button onclick="createNewFile()" title="New File">✚ FILE</button>
+                <button onclick="createNewFolder()" title="New Folder">✚ DIR</button>
+            </div>
+
+            <div id="searchContainer">
+                <div style="display: flex; gap: 4px;">
+                    <input type="text" id="globalSearchInput" placeholder="GLOBAL GREP..." style="flex-grow: 1;" onkeydown="if(event.key==='Enter') runGlobalSearch()">
+                    <button onclick="runGlobalSearch()">SCAN</button>
                 </div>
-                <div id="revisionList" class="git-list"></div>
+                <div id="searchResults"></div>
+            </div>
+
+            <div id="fileList"></div>
+        </div>
+
+        <div id="view-git" class="sidebar-view">
+            <div class="git-controls">
+                <button onclick="initGitRepo()" style="width: 100%; margin-bottom: 5px; color: var(--ui-accent);">INITIALIZE REPO (GIT INIT)</button>
+                <input type="text" id="commitMessage" placeholder="Commit message...">
+                <button onclick="commitChanges()" style="width: 100%; margin-top: 5px;">COMMIT</button>
+            </div>
+
+            <div class="toolbar" style="margin-top: 10px;">
+                <button onclick="gitAction('pull')" title="Pull from Remote">PULL ↓</button>
+                <button onclick="gitAction('push')" title="Push to Remote">PUSH ↑</button>
+                <button onclick="refreshGitStatus()" title="Refresh Status">⟳</button>
+            </div>
+
+            <div id="gitStatusList" class="git-list"></div>
+        </div>
+
+        <div id="view-history" class="sidebar-view">
+            <div class="git-header">
+                <span>REVISION ARCHIVE</span>
+            </div>
+            <div id="revisionList" class="git-list"></div>
+        </div>
+    </div>
+
+    <div class="resizer-v" id="resizer-sb"></div>
+
+    <div class="editor-container" style="display: flex; flex-direction: column;">
+        <div class="controls">
+            <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
+            <button onclick="saveFile()">Save</button>
+            <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
+            <button onclick="executeActiveScript()" title="Execute Active Target (Ctrl+Enter)" style="color: var(--ui-accent); border-color: var(--ui-accent); font-weight: bold;">▶ RUN</button>
+            <button onclick="shutdownCrucible()" style="color: var(--ui-text-bright); border-color: var(--ui-border-dark); margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
+            <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
+
+            <div id="statusBar">
+                <div id="shadowStatus" style="width: 10px; height: 10px; border-radius: 50%; background: var(--ui-text-dim); margin-right: 10px;"></div>
+                <div id="progressFill"></div>
+                <div id="statusText">
+                    <span id="coreStatus">System Operational</span>
+                    <span id="envIndicator" style="color: var(--ui-text-muted); font-weight: bold; margin-right: 15px; margin-left: 15px;">PYTHON: (GLOBAL)</span>
+                    <span id="corePercent">0%</span>
+                </div>
             </div>
         </div>
 
-        <div class="resizer-v" id="resizer-sb"></div>
+        <div id="tabBar"></div>
 
-        <div class="editor-container" style="display: flex; flex-direction: column;">
-            <div class="controls">
-                <button onclick="openSettings()" title="Preferences">⚙️ CONFIG</button>
-                <button onclick="saveFile()">Save</button>
-                <button id="formatToggle" onclick="toggleAutoFormat()">Auto-Format</button>
-                <button onclick="executeActiveScript()" title="Execute Active Target (Ctrl+Enter)" style="color: var(--ui-accent); border-color: var(--ui-accent); font-weight: bold;">▶ RUN</button>
-                <button onclick="shutdownCrucible()" style="color: var(--ui-text-bright); border-color: var(--ui-border-dark); margin-left: 15px;" title="Terminate System">⏻ EXIT</button>
-                <button onclick="startIndexing()" title="Run Vector Indexer">Index Forge</button>
-
-                <div id="statusBar">
-                    <div id="shadowStatus" style="width: 10px; height: 10px; border-radius: 50%; background: var(--ui-text-dim); margin-right: 10px;"></div>
-                    <div id="progressFill"></div>
-                    <div id="statusText">
-                        <span id="coreStatus">System Operational</span>
-                        <span id="envIndicator" style="color: var(--ui-text-muted); font-weight: bold; margin-right: 15px; margin-left: 15px;">PYTHON: (GLOBAL)</span>
-                        <span id="corePercent">0%</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tabBar"></div>
-
-            <div class="toolbar" style="margin: 0; border-bottom: 1px solid var(--ui-border-dark); background: var(--ui-bg-panel); padding: 5px;">
-                <button onclick="editor.undo()" title="Undo (Ctrl+Z)">↶ UNDO</button>
-                <button onclick="editor.redo()" title="Redo (Ctrl+Y)">↷ REDO</button>
-                <span style="width: 10px;"></span>
-                <button onclick="editor.execCommand('find')" title="Find / Replace (Ctrl+F)">🔍 FIND</button>
-                <button onclick="editor.toggleCommentLines()" title="Toggle Line Comment (Ctrl+/)">// COMMENT</button>
-                <button onclick="triggerManualFormat()" title="Format Document">▤ FORMAT</button>
-                <button onclick="switchSidebar('history'); Crucible.modules.history.list(window.currentOpenPath);" title="View Timeline" style="color: var(--ui-accent); font-weight: bold;">⏱ TIMELINE</button>
-                <span style="width: 10px;"></span>
-                <button onclick="toggleSplitView()" id="splitBtn" title="Toggle Dual-Buffer" class="active">◫ SPLIT</button>
-                <button onclick="toggleTerminal()" id="termBtn" title="Toggle Terminal" class="active">🖵 TERM</button>
-                <button id="inspectorToggleBtn" class="action-btn" onclick="toggleInspector()" title="Toggle Inspect/Edit Mode">Inspect UI</button>
-            </div>
-
-            <div id="codeEditor" style="flex-grow: 1;"></div>
+        <div class="toolbar" style="margin: 0; border-bottom: 1px solid var(--ui-border-dark); background: var(--ui-bg-panel); padding: 5px;">
+            <button onclick="editor.undo()" title="Undo (Ctrl+Z)">↶ UNDO</button>
+            <button onclick="editor.redo()" title="Redo (Ctrl+Y)">↷ REDO</button>
+            <span style="width: 10px;"></span>
+            <button onclick="editor.execCommand('find')" title="Find / Replace (Ctrl+F)">🔍 FIND</button>
+            <button id="btn-hard-refresh" class="forge-btn" title="Force UI Reload">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+                </svg>
+            </button>
+            <button onclick="editor.toggleCommentLines()" title="Toggle Line Comment (Ctrl+/)">// COMMENT</button>
+            <button onclick="triggerManualFormat()" title="Format Document">▤ FORMAT</button>
+            <button onclick="switchSidebar('history'); Crucible.modules.history.list(window.currentOpenPath);" title="View Timeline" style="color: var(--ui-accent); font-weight: bold;">⏱ TIMELINE</button>
+            <span style="width: 10px;"></span>
+            <button onclick="toggleSplitView()" id="splitBtn" title="Toggle Dual-Buffer" class="active">◫ SPLIT</button>
+            <button onclick="toggleTerminal()" id="termBtn" title="Toggle Terminal" class="active">🖵 TERM</button>
+            <button id="inspectorToggleBtn" class="action-btn" onclick="toggleInspector()" title="Toggle Inspect/Edit Mode">Inspect UI</button>
         </div>
 
-        <div class="resizer-v" id="resizer-ed"></div>
-        <div class="resizer-h" id="resizer-tm"></div>
+        <div id="codeEditor" style="flex-grow: 1;"></div>
+    </div>
 
-        <div class="output-container" style="display: flex; flex-direction: column;">
-            <div class="controls">
-                <button onclick="togglePreview()" id="previewBtn" style="color: var(--ui-accent);">Preview</button>
-                <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
-                <button onclick="askAI()" id="execBtn">Execute</button>
+    <div class="resizer-v" id="resizer-ed"></div>
+    <div class="resizer-h" id="resizer-tm"></div>
 
-                <div id="viewportControls" style="display: none; gap: 4px; align-items: center;">
-                    <button class="btn-viewport" onclick="setViewport('100%')">Desktop</button>
-                    <button class="btn-viewport" onclick="setViewport('768px')">Tablet</button>
-                    <button class="btn-viewport" onclick="setViewport('375px')">Mobile</button>
-                    <button class="btn-viewport" onclick="togglePreviewBackground()" style="color: var(--ui-accent);">BG Toggle</button>
+    <div class="output-container" style="display: flex; flex-direction: column;">
+        <div class="controls">
+            <button onclick="togglePreview()" id="previewBtn" style="color: var(--ui-accent);">Preview</button>
+            <input type="text" id="aiInput" placeholder="Forge Directives..." style="flex-grow: 1;">
+            <button onclick="askAI()" id="execBtn">Execute</button>
 
-                    <span class="control-separator"></span>
+            <div id="viewportControls" style="display: none; gap: 4px; align-items: center;">
+                <button class="btn-viewport" onclick="setViewport('100%')">Desktop</button>
+                <button class="btn-viewport" onclick="setViewport('768px')">Tablet</button>
+                <button class="btn-viewport" onclick="setViewport('375px')">Mobile</button>
+                <button class="btn-viewport" onclick="togglePreviewBackground()" style="color: var(--ui-accent);">BG Toggle</button>
+                <span class="control-separator"></span>
 
-                    <button class="btn-action" onclick="execPreviewCommand('bold')" title="Bold Selection">B</button>
-                    <button class="btn-action" onclick="execPreviewCommand('italic')" title="Italicize Selection" style="font-style: italic;">I</button>
-                    <button class="btn-action" onclick="execPreviewCommand('underline')" title="Underline Selection" style="text-decoration: underline;">U</button>
-                    <button class="btn-action" onclick="execPreviewCommand('strikeThrough')" title="Strikethrough Selection" style="text-decoration: line-through;">S</button>
+                <button class="btn-action" onclick="execPreviewCommand('bold')" title="Bold Selection">B</button>
+                <button class="btn-action" onclick="execPreviewCommand('italic')" title="Italicize Selection" style="font-style: italic;">I</button>
+                <button class="btn-action" onclick="execPreviewCommand('underline')" title="Underline Selection" style="text-decoration: underline;">U</button>
+                <button class="btn-action" onclick="execPreviewCommand('strikeThrough')" title="Strikethrough Selection" style="text-decoration: line-through;">S</button>
 
-                    <span class="control-separator"></span>
+                <span class="control-separator"></span>
 
-                    <select class="select-format" onchange="setPreviewBlockStyle(this.value); this.selectedIndex = 0;" style="background: var(--ui-bg-base); color: var(--ui-text-main); border: 1px solid var(--ui-border-dark);">
-                        <option value="" disabled selected>Format</option>
-                        <option value="p">Paragraph</option>
-                        <option value="h1">Heading 1</option>
-                        <option value="h2">Heading 2</option>
-                        <option value="h3">Heading 3</option>
-                        <option value="pre">Code Block</option>
-                    </select>
+                <select class="select-format" onchange="setPreviewBlockStyle(this.value); this.selectedIndex = 0;" style="background: var(--ui-bg-base); color: var(--ui-text-main); border: 1px solid var(--ui-border-dark);">
+                    <option value="" disabled="" selected="">Format</option>
+                    <option value="p">Paragraph</option>
+                    <option value="h1">Heading 1</option>
+                    <option value="h2">Heading 2</option>
+                    <option value="h3">Heading 3</option>
+                    <option value="pre">Code Block</option>
+                </select>
 
-                    <span class="control-separator"></span>
+                <span class="control-separator"></span>
 
-                    <button onclick="execPreviewCommand('insertUnorderedList')" title="Unordered List">├── List</button>
-                    <button onclick="execPreviewCommand('insertOrderedList')" title="Ordered List">1── List</button>
+                <button onclick="execPreviewCommand('insertUnorderedList')" title="Unordered List">├── List</button>
+                <button onclick="execPreviewCommand('insertOrderedList')" title="Ordered List">1── List</button>
 
-                    <span class="control-separator"></span>
+                <span class="control-separator"></span>
 
-                    <button onclick="const url = prompt('Enter target hyperlink URL:'); if(url) execPreviewCommand('createLink', url);" title="Insert Link">🔗 Link</button>
-                    <button onclick="execPreviewCommand('unlink')" title="Remove Link">Unlink</button>
-                </div>
-
-                <button onclick="runShadowTest()" id="verifyBtn" style="color: var(--ui-text-bright);">Verify</button>
-                <button onclick="applyDiffMerge()" id="mergeBtn" style="color: var(--ui-accent);">Merge</button>
-                <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
+                <button onclick="const url = prompt('Enter target hyperlink URL:'); if(url) execPreviewCommand('createLink', url);" title="Insert Link">🔗 Link</button>
+                <button onclick="execPreviewCommand('unlink')" title="Remove Link">Unlink</button>
             </div>
 
-            <div id="outputEditor" style="flex-grow: 1;"></div>
-            <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: var(--ui-bg-base);"></iframe>
+            <button onclick="runShadowTest()" id="verifyBtn" style="color: var(--ui-text-bright);">Verify</button>
+            <button onclick="applyDiffMerge()" id="mergeBtn" style="color: var(--ui-accent);">Merge</button>
+            <button id="wrapToggle" onclick="toggleWrap()" class="active">Wrap</button>
         </div>
 
-        <div class="modal-overlay" id="settingsModal" style="display: none;">
-            <div class="modal-content settings-modal-content">
-                <div class="settings-header">
-                    <h3 style="margin: 0; color: var(--ui-text-bright); font-size: 14px; letter-spacing: 2px;">⚙️ SYSTEM PREFERENCES</h3>
-                    <button class="close-btn" onclick="closeSettings()" style="background: transparent; border: none; color: var(--ui-text-dim); cursor: pointer;">✕</button>
+        <div id="outputEditor" style="flex-grow: 1;"></div>
+        <iframe id="previewFrame" style="display: none; flex-grow: 1; width: 100%; border: none; background: var(--ui-bg-base);"></iframe>
+    </div>
+
+    <div class="modal-overlay" id="settingsModal" style="display: none;">
+        <div class="modal-content settings-modal-content">
+            <div class="settings-header">
+                <h3 style="margin: 0; color: var(--ui-text-bright); font-size: 14px; letter-spacing: 2px;">⚙️ SYSTEM PREFERENCES</h3>
+                <button class="close-btn" onclick="closeSettings()" style="background: transparent; border: none; color: var(--ui-text-dim); cursor: pointer;">✕</button>
+            </div>
+
+            <div class="settings-body">
+                <div class="settings-nav">
+                    <button class="settings-tab-btn active" onclick="switchSettingsTab(event, 'pane-general')">Appearance</button>
+                    <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'pane-colors')">Color Vectors</button>
+                    <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'pane-git')">Git &amp; Auth</button>
                 </div>
 
-                <div class="settings-body">
-                    <div class="settings-nav">
-                        <button class="settings-tab-btn active" onclick="switchSettingsTab(event, 'pane-general')">Appearance</button>
-                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'pane-colors')">Color Vectors</button>
-                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'pane-git')">Git & Auth</button>
-                    </div>
+                <div class="settings-panes">
+                    <div id="pane-general" class="tab-pane active">
+                        <h4 style="color: var(--ui-text-main); margin-top: 0; margin-bottom: 15px;">Core Environment</h4>
 
-                    <div class="settings-panes">
-                        <div id="pane-general" class="tab-pane active">
-                            <h4 style="color: var(--ui-text-main); margin-top: 0; margin-bottom: 15px;">Core Environment</h4>
-
-                            <div class="settings-row" style="margin-bottom: 15px; display: flex; gap: 10px;">
-                                <div class="settings-group" style="flex: 1;">
-                                    <label>Editor Theme</label>
-                                    <select id="set-theme" onchange="toggleCustomThemeEditor()"></select>
-                                </div>
-                                <div class="settings-group" style="flex: 1;">
-                                    <label>Project Workspace</label>
-                                    <div style="display: flex; gap: 5px;">
-                                        <input type="text" id="set-workspace" placeholder="/home/user/project" style="flex-grow: 1;">
-                                        <button id="browse-btn" onclick="sendToShell('PICK_FOLDER', '')" style="display: none;">Browse</button>
-                                    </div>
-                                </div>
+                        <div class="settings-row" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                            <div class="settings-group" style="flex: 1;">
+                                <label>Editor Theme</label>
+                                <select id="set-theme" onchange="toggleCustomThemeEditor()"></select>
                             </div>
-
-                            <div class="settings-row" style="margin-bottom: 15px; display: flex; gap: 10px;">
-                                <div class="settings-group" style="flex: 1;">
-                                    <label>Editor Font Size</label>
-                                    <input type="number" id="set-ed-font" value="14" min="8" max="24">
-                                </div>
-                                <div class="settings-group" style="flex: 1;">
-                                    <label>Terminal Font Size</label>
-                                    <input type="number" id="set-tm-font" value="13" min="8" max="24">
-                                </div>
-                            </div>
-
-                            <div class="settings-row" style="display: flex; flex-direction: row; align-items: center; gap: 15px;">
-                                <div style="display: flex; align-items: center; gap: 5px;">
-                                    <input type="checkbox" id="set-wordwrap" checked>
-                                    <label style="margin: 0;">Word Wrap</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="pane-colors" class="tab-pane">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <h4 style="color: var(--ui-text-main); margin: 0;">Custom Theme Engine</h4>
+                            <div class="settings-group" style="flex: 1;">
+                                <label>Project Workspace</label>
                                 <div style="display: flex; gap: 5px;">
-                                    <input type="text" id="customThemeName" placeholder="Theme Name..." style="padding: 4px 8px; font-size: 11px; width: 120px;">
-                                    <button onclick="saveCustomThemeToDisk()" style="padding: 4px 10px; font-size: 11px; color: var(--ui-accent); border-color: var(--ui-accent); background: transparent; cursor: pointer;">Save Preset</button>
-                                </div>
-                            </div>
-
-                            <div id="customThemeEditor" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <div class="settings-group">
-                                    <label>Base Core</label><input type="color" id="color-bg-base" value="#000000">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Panel BG</label><input type="color" id="color-bg-panel" value="#050505">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Surface BG</label><input type="color" id="color-bg-surface" value="#0a0a0a">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Hover BG</label><input type="color" id="color-bg-hover" value="#111111">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Dark Border</label><input type="color" id="color-border-dark" value="#1a1a1a">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Light Border</label><input type="color" id="color-border-light" value="#222222">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Dim Text</label><input type="color" id="color-text-dim" value="#444444">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Muted Text</label><input type="color" id="color-text-muted" value="#666666">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Main Text</label><input type="color" id="color-text-main" value="#888888">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Bright Text</label><input type="color" id="color-text-bright" value="#cccccc">
-                                </div>
-                                <div class="settings-group">
-                                    <label>Accent Color</label><input type="color" id="color-accent" value="#569cd6">
+                                    <input type="text" id="set-workspace" placeholder="/home/user/project" style="flex-grow: 1;">
+                                    <button id="browse-btn" onclick="sendToShell('PICK_FOLDER', '')" style="display: none;">Browse</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="pane-git" class="tab-pane">
-                            <h4 style="color: var(--ui-text-main); margin-top: 0; margin-bottom: 5px;">Repository Credentials</h4>
-                            <p style="color: var(--ui-text-dim); font-size: 11px; margin-top: 0; margin-bottom: 15px;">
-                                Credentials are encrypted in the local vault upon saving.
-                            </p>
-
-                            <div class="settings-group" style="margin-bottom: 10px;">
-                                <label>GitHub PAT (Authentication)</label>
-                                <input type="password" id="set-pat" placeholder="ghp_...">
+                        <div class="settings-row" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                            <div class="settings-group" style="flex: 1;">
+                                <label>Editor Font Size</label>
+                                <input type="number" id="set-ed-font" value="14" min="8" max="24">
                             </div>
-
-                            <div class="settings-group" style="margin-bottom: 15px;">
-                                <label>Target Repository URL (Remote Origin)</label>
-                                <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
+                            <div class="settings-group" style="flex: 1;">
+                                <label>Terminal Font Size</label>
+                                <input type="number" id="set-tm-font" value="13" min="8" max="24">
                             </div>
+                        </div>
 
-                            <div class="settings-row" style="display: flex; gap: 10px;">
-                                <div class="settings-group" style="flex: 1;">
-                                    <label>Git Author Name</label>
-                                    <input type="text" id="set-git-name" placeholder="John Doe">
-                                </div>
-                                <div class="settings-group" style="flex: 1;">
-                                    <label>Git Author Email</label>
-                                    <input type="text" id="set-git-email" placeholder="john@example.com">
-                                </div>
+                        <div class="settings-row" style="display: flex; flex-direction: row; align-items: center; gap: 15px;">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" id="set-wordwrap" checked="">
+                                <label style="margin: 0;">Word Wrap</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="pane-colors" class="tab-pane">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="color: var(--ui-text-main); margin: 0;">Custom Theme Engine</h4>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="text" id="customThemeName" placeholder="Theme Name..." style="padding: 4px 8px; font-size: 11px; width: 120px;">
+                                <button onclick="saveCustomThemeToDisk()" style="padding: 4px 10px; font-size: 11px; color: var(--ui-accent); border-color: var(--ui-accent); background: transparent; cursor: pointer;">Save Preset</button>
+                            </div>
+                        </div>
+
+                        <div id="customThemeEditor" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="settings-group">
+                                <label>Base Core</label><input type="color" id="color-bg-base" value="#000000">
+                            </div>
+                            <div class="settings-group">
+                                <label>Panel BG</label><input type="color" id="color-bg-panel" value="#050505">
+                            </div>
+                            <div class="settings-group">
+                                <label>Surface BG</label><input type="color" id="color-bg-surface" value="#0a0a0a">
+                            </div>
+                            <div class="settings-group">
+                                <label>Hover BG</label><input type="color" id="color-bg-hover" value="#111111">
+                            </div>
+                            <div class="settings-group">
+                                <label>Dark Border</label><input type="color" id="color-border-dark" value="#1a1a1a">
+                            </div>
+                            <div class="settings-group">
+                                <label>Light Border</label><input type="color" id="color-border-light" value="#222222">
+                            </div>
+                            <div class="settings-group">
+                                <label>Dim Text</label><input type="color" id="color-text-dim" value="#444444">
+                            </div>
+                            <div class="settings-group">
+                                <label>Muted Text</label><input type="color" id="color-text-muted" value="#666666">
+                            </div>
+                            <div class="settings-group">
+                                <label>Main Text</label><input type="color" id="color-text-main" value="#888888">
+                            </div>
+                            <div class="settings-group">
+                                <label>Bright Text</label><input type="color" id="color-text-bright" value="#cccccc">
+                            </div>
+                            <div class="settings-group">
+                                <label>Accent Color</label><input type="color" id="color-accent" value="#569cd6">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="pane-git" class="tab-pane">
+                        <h4 style="color: var(--ui-text-main); margin-top: 0; margin-bottom: 5px;">Repository Credentials</h4>
+                        <p style="color: var(--ui-text-dim); font-size: 11px; margin-top: 0; margin-bottom: 15px;">
+                            Credentials are encrypted in the local vault upon saving.
+                        </p>
+
+                        <div class="settings-group" style="margin-bottom: 10px;">
+                            <label>GitHub PAT (Authentication)</label>
+                            <input type="password" id="set-pat" placeholder="ghp_...">
+                        </div>
+
+                        <div class="settings-group" style="margin-bottom: 15px;">
+                            <label>Target Repository URL (Remote Origin)</label>
+                            <input type="text" id="set-repo" placeholder="https://github.com/User/Repo.git">
+                        </div>
+
+                        <div class="settings-row" style="display: flex; gap: 10px;">
+                            <div class="settings-group" style="flex: 1;">
+                                <label>Git Author Name</label>
+                                <input type="text" id="set-git-name" placeholder="John Doe">
+                            </div>
+                            <div class="settings-group" style="flex: 1;">
+                                <label>Git Author Email</label>
+                                <input type="text" id="set-git-email" placeholder="john@example.com">
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="settings-footer">
-                    <button onclick="closeSettings()" style="background: transparent; border: 1px solid var(--ui-border-dark); color: var(--ui-text-main); cursor: pointer; padding: 6px 12px;">Cancel</button>
-                    <button onclick="saveSettings()" style="color: var(--ui-accent); border-color: var(--ui-accent); background: transparent; font-weight: bold; cursor: pointer; padding: 6px 12px;">Save Changes</button>
-                </div>
+            <div class="settings-footer">
+                <button onclick="closeSettings()" style="background: transparent; border: 1px solid var(--ui-border-dark); color: var(--ui-text-main); cursor: pointer; padding: 6px 12px;">Cancel</button>
+                <button onclick="saveSettings()" style="color: var(--ui-accent); border-color: var(--ui-accent); background: transparent; font-weight: bold; cursor: pointer; padding: 6px 12px;">Save Changes</button>
             </div>
         </div>
+    </div>
 
-        <script>
-            if (typeof isShell !== 'undefined' && isShell) {
-                const btn = document.getElementById('browse-btn');
-                if (btn) btn.style.display = 'block';
-            }
-        </script>
+    <script>
+        if (typeof isShell !== 'undefined' && isShell) {
+            const btn = document.getElementById('browse-btn');
+            if (btn) btn.style.display = 'block';
+        }
+    </script>
 
-        <div class="terminal-container">
-            <div id="terminalBox"></div>
-        </div>
+    <div class="terminal-container">
+        <div id="terminalBox"></div>
+    </div>
 
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-searchbox.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/ace-linters@latest/build/ace-linters.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/mode-python.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-modelist.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-searchbox.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ace-linters@latest/build/ace-linters.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/mode-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-beautify.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/mode-python.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-modelist.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
 
-        <script src="/ui/js/globals.js"></script>
-        <script src="/ui/themes.js"></script>
-        <script src="/ui/js/editor.js"></script>
-        <script src="/ui/js/filesystem.js"></script>
-        <script src="/ui/js/git.js"></script>
-        <script src="/ui/js/ai_core.js"></script>
-        <script src="/ui/js/settings.js"></script>
+    <script src="/ui/js/globals.js"></script>
+    <script src="/ui/themes.js"></script>
+    <script src="/ui/js/editor.js"></script>
+    <script src="/ui/js/filesystem.js"></script>
+    <script src="/ui/js/git.js"></script>
+    <script src="/ui/js/ai_core.js"></script>
+    <script src="/ui/js/settings.js"></script>
 
-        <script>
-            [editor, outputEditor].forEach(ed => {
-                ed.commands.addCommand({
-                    name: 'save',
-                    bindKey: {
-                        win: 'Ctrl-S', mac: 'Cmd-S'
-                    },
-                    exec: saveFile
+    <script>
+        // Add this variable at the top of your script block
+        let syncTimeout = null;
+
+        window.injectPreviewInspectorRules = function(targetDocument) {
+            if (!targetDocument) return;
+
+            // Stamp unique IDs for mapping if they don't exist
+            const allElements = targetDocument.body.querySelectorAll('*');
+            allElements.forEach((el, index) => {
+                if (!el.getAttribute('data-crucible-id')) {
+                    el.setAttribute('data-crucible-id', `c-${index}`);
+                }
+            });
+
+            targetDocument.body.addEventListener('input',
+                (e) => {
+                    if (!window.inspectorActive) return;
+
+                    const target = e.target;
+                    const cid = target.getAttribute('data-crucible-id');
+                    if (!cid) return;
+
+                    const newContent = target.innerText;
+                    const lines = editor.getSession().getDocument().getAllLines();
+
+                    // Surgical Patching
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].includes(cid)) {
+                            // Keep the structural tag, update only the inner text content
+                            const updatedLine = lines[i].replace(/>([^<]*)</, `>${newContent}<`);
+                            editor.getSession().replace(
+                                new (ace.require('ace/range').Range)(i, 0, i, lines[i].length),
+                                updatedLine
+                            );
+                            break;
+                        }
+                    }
                 });
+        };
+        [editor, outputEditor].forEach(ed => {
+            ed.commands.addCommand({
+                name: 'save',
+                bindKey: {
+                    win: 'Ctrl-S', mac: 'Cmd-S'
+                },
+                exec: saveFile
+            });
 
-                // Execution Macro for Ace Editor Focus
-                ed.commands.addCommand({
-                    name: 'runScript',
-                    bindKey: {
-                        win: 'Ctrl-Enter', mac: 'Cmd-Enter'
-                    },
-                    exec: function() {
+            // Execution Macro for Ace Editor Focus
+            ed.commands.addCommand({
+                name: 'runScript',
+                bindKey: {
+                    win: 'Ctrl-Enter', mac: 'Cmd-Enter'
+                },
+                exec: function() {
+                    if (typeof executeActiveScript === 'function') {
+                        executeActiveScript();
+                    }
+                }
+            });
+
+            // Build Macro for Ace Editor Focus
+            ed.commands.addCommand({
+                name: 'buildScript',
+                bindKey: {
+                    win: 'Ctrl-B',
+                    mac: 'Cmd-B'
+                },
+                exec: function() {
+                    if (window.currentSelectedPath) {
+                        fetch('/api/build', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                path: window.currentSelectedPath
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(d => console.log(`[BUILD RUNNER] Status: ${d.status}`));
+                    }
+                }
+            });
+        });
+
+        // ==========================================
+        // CRUCIBLE CORE WEBSOCKET MULTIPLEXER
+        // ==========================================
+        (function() {
+            const socketProtocol = window.location.protocol === 'https:' ? 'wss://': 'ws://';
+            const socketUrl = socketProtocol + window.location.host;
+            const ws = new WebSocket(socketUrl);
+
+            // Expose the socket instance globally so peripheral interface modules can dispatch data strings
+            window.crucibleSocket = ws;
+
+            ws.onopen = () => {
+                console.log("[SYSTEM] Unified communication pipeline operational.");
+
+                // Force terminal geometric synchronization loop immediately following network layout connection
+                if (typeof sendResize === 'function') {
+                    sendResize();
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const rawData = event.data;
+
+                // Traffic Router Guard: Intercept structured JSON telemetry strings safely
+                if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
+                    try {
+                        const packet = JSON.parse(rawData);
+
+                        // Route the compiled data object over to the graphic status bars
+                        if (typeof window.handleCrucibleTelemetry === 'function') {
+                            window.handleCrucibleTelemetry(packet);
+
+                            // Terminate the execution path to protect the terminal from rendering raw JSON notation
+                            return;
+                        }
+                    } catch (e) {
+                        // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
+                    }
+                }
+
+                // Feed standard operating system shell strings straight into the terminal display matrix
+                if (typeof term !== 'undefined' && term.write) {
+                    //term.write(rawData);
+                }
+            };
+
+            ws.onclose = () => {
+                console.warn("[SYSTEM] Communication pipeline dropped. Retrying interface connection...");
+                const statusTextElement = document.getElementById('statusText');
+                if (statusTextElement) {
+                    statusTextElement.innerText = "OFFLINE: BACKEND TERMINATED";
+                }
+            };
+
+            ws.onerror = (err) => {
+                console.error("[NET FAILURE] Socket exceptions detected:", err);
+            };
+
+            // Connect the layout input framework back to the native shell loop
+            if (typeof term !== 'undefined' && term.onData) {
+                term.onData((data) => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        // Wrap user keystrokes into the designated pty transaction payload frame
+                        ws.send(JSON.stringify({
+                            type: 'input',
+                            data: data
+                        }));
+                    }
+                });
+            }
+
+            // Hard Refresh UI Pipeline
+            const refreshBtn = document.getElementById('btn-hard-refresh');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    console.log('[SYSTEM] Initiating hard UI refresh...');
+
+                    // Save any active buffer before reloading to prevent data loss
+                    if (typeof saveFile === 'function' && window.currentOpenPath) {
+                        saveFile().then(() => {
+                            window.location.reload(true);
+                        }).catch(() => {
+                            // If save fails, force reload anyway
+                            window.location.reload(true);
+                        });
+                    } else {
+                        window.location.reload(true);
+                    }
+                });
+            }
+
+            // Core keymap input matrix tracking implementation
+            window.addEventListener('keydown',
+                function(e) {
+
+                    // Execution Macro: Ctrl+Enter (or Cmd+Enter)
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault();
                         if (typeof executeActiveScript === 'function') {
                             executeActiveScript();
                         }
                     }
-                });
 
-                // Build Macro for Ace Editor Focus
-                ed.commands.addCommand({
-                    name: 'buildScript',
-                    bindKey: {
-                        win: 'Ctrl-B',
-                        mac: 'Cmd-B'
-                    },
-                    exec: function() {
+                    // Build Macro: Ctrl+B (or Cmd+B)
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                        e.preventDefault();
                         if (window.currentSelectedPath) {
                             fetch('/api/build', {
                                 method: 'POST',
@@ -370,446 +535,346 @@
                                 })
                             })
                             .then(res => res.json())
-                            .then(d => console.log(`[BUILD RUNNER] Status: ${d.status}`));
+                            .then(d => console.log(`[BUILD RUNNER] Macro deployment acknowledged: ${d.status}`));
                         }
                     }
                 });
-            });
 
             // ==========================================
-            // CRUCIBLE CORE WEBSOCKET MULTIPLEXER
+            // PREVIEW & INSPECTOR TOGGLE
             // ==========================================
-            (function() {
-                const socketProtocol = window.location.protocol === 'https:' ? 'wss://': 'ws://';
-                const socketUrl = socketProtocol + window.location.host;
-                const ws = new WebSocket(socketUrl);
 
-                // Expose the socket instance globally so peripheral interface modules can dispatch data strings
-                window.crucibleSocket = ws;
+            window.inspectorActive = false;
 
-                ws.onopen = () => {
-                    console.log("[SYSTEM] Unified communication pipeline operational.");
+            window.toggleInspector = function() {
+                window.inspectorActive = !window.inspectorActive;
 
-                    // Force terminal geometric synchronization loop immediately following network layout connection
-                    if (typeof sendResize === 'function') {
-                        sendResize();
-                    }
-                };
+                const btn = document.getElementById('inspectorToggleBtn');
+                if (btn) btn.classList.toggle('active', window.inspectorActive);
 
-                ws.onmessage = (event) => {
-                    const rawData = event.data;
+                if (typeof isPreviewActive !== 'undefined' && isPreviewActive) {
+                    const frame = document.getElementById('previewFrame');
+                    if (frame && typeof editor !== 'undefined') {
+                        const doc = frame.contentDocument || frame.contentWindow.document;
 
-                    // Traffic Router Guard: Intercept structured JSON telemetry strings safely
-                    if (typeof rawData === 'string' && rawData.trim().startsWith('{')) {
-                        try {
-                            const packet = JSON.parse(rawData);
+                        // 1. Force a complete document wipe to kill sticky designMode and ghost event listeners
+                        doc.open();
+                        doc.write(editor.getValue());
+                        doc.close();
 
-                            // Route the compiled data object over to the graphic status bars
-                            if (typeof window.handleCrucibleTelemetry === 'function') {
-                                window.handleCrucibleTelemetry(packet);
-
-                                // Terminate the execution path to protect the terminal from rendering raw JSON notation
-                                return;
-                            }
-                        } catch (e) {
-                            // Fall back smoothly if data stream sequences contain raw terminal lines that mimic JSON symbols
+                        // 2. Apply the correct ruleset to the freshly built document
+                        if (typeof window.injectPreviewInspectorRules === 'function') {
+                            window.injectPreviewInspectorRules(doc);
                         }
                     }
-
-                    // Feed standard operating system shell strings straight into the terminal display matrix
-                    if (typeof term !== 'undefined' && term.write) {
-                        //term.write(rawData);
-                    }
-                };
-
-                ws.onclose = () => {
-                    console.warn("[SYSTEM] Communication pipeline dropped. Retrying interface connection...");
-                    const statusTextElement = document.getElementById('statusText');
-                    if (statusTextElement) {
-                        statusTextElement.innerText = "OFFLINE: BACKEND TERMINATED";
-                    }
-                };
-
-                ws.onerror = (err) => {
-                    console.error("[NET FAILURE] Socket exceptions detected:", err);
-                };
-
-                // Connect the layout input framework back to the native shell loop
-                if (typeof term !== 'undefined' && term.onData) {
-                    term.onData((data) => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            // Wrap user keystrokes into the designated pty transaction payload frame
-                            ws.send(JSON.stringify({
-                                type: 'input',
-                                data: data
-                            }));
-                        }
-                    });
                 }
 
-                // Core keymap input matrix tracking implementation
-                window.addEventListener('keydown',
-                    function(e) {
+                if (typeof term !== 'undefined') {
+                    term.write(`\r\n\x1b[36m[SYSTEM] Mode: ${window.inspectorActive ? 'DESIGN': 'INTERACT'}\x1b[0m\r\n`);
+                }
+            };
 
-                        // Execution Macro: Ctrl+Enter (or Cmd+Enter)
-                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                            e.preventDefault();
-                            if (typeof executeActiveScript === 'function') {
-                                executeActiveScript();
+            // Attach to window to guarantee scope parity
+            window.injectPreviewInspectorRules = function(targetDocument) {
+                if (!targetDocument || !targetDocument.body) return;
+
+                if (window.inspectorActive) {
+                    targetDocument.designMode = "on";
+                    targetDocument.body.contentEditable = "true";
+                } else {
+                    targetDocument.designMode = "off";
+                    targetDocument.body.contentEditable = "false";
+                    return;
+                }
+
+                // Input listener: Pushes changes back to Ace Editor
+                targetDocument.body.addEventListener('input', () => {
+                    if (typeof editor === 'undefined' || !window.inspectorActive) return;
+
+                    // Prevent circular updates
+                    window.isSyncingFromIframe = true;
+
+                    const updatedHTML = targetDocument.body.innerHTML;
+                    const cursorPosition = editor.getCursorPosition();
+
+                    // Push the new DOM snapshot into the Ace buffer
+                    editor.setValue(updatedHTML, -1);
+                    editor.moveCursorToPosition(cursorPosition);
+
+                    window.isSyncingFromIframe = false;
+                });
+
+                // Inspector click: Pulls Ace Editor to the correct line
+                targetDocument.body.addEventListener('click',
+                    (e) => {
+                        if (!window.inspectorActive) return;
+                        e.preventDefault();
+
+                        const targetElement = e.target;
+                        const outerHTML = targetElement.outerHTML;
+
+                        // Scan the current editor content to find the line
+                        const content = editor.getValue();
+                        const lines = content.split('\n');
+
+                        for (let i = 0; i < lines.length; i++) {
+                            // Find the line containing the specific HTML tag fragment
+                            if (lines[i].includes(outerHTML.split('>')[0])) {
+                                editor.gotoLine(i + 1, 0, true);
+                                editor.focus();
+
+                                // Visual breadcrumb
+                                editor.session.addMarker(
+                                    new (ace.require('ace/range').Range)(i, 0, i, 1),
+                                    "ace_active-line",
+                                    "fullLine"
+                                );
+                                break;
                             }
                         }
+                    },
+                    true);
+            };
 
-                        // Build Macro: Ctrl+B (or Cmd+B)
-                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-                            e.preventDefault();
-                            if (window.currentSelectedPath) {
-                                fetch('/api/build', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({
-                                        path: window.currentSelectedPath
-                                    })
-                                })
-                                .then(res => res.json())
-                                .then(d => console.log(`[BUILD RUNNER] Macro deployment acknowledged: ${d.status}`));
-                            }
-                        }
-                    });
+            // Add this to your main script block in dashboard.html
+            window.matchTargetNodeBackToCodeSource = function(htmlFragment) {
+                const editorContent = editor.getValue();
 
-                // ==========================================
-                // PREVIEW & INSPECTOR TOGGLE
-                // ==========================================
+                // Simple regex-based localization: finding the line index of the outerHTML string
+                const lines = editorContent.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].includes(htmlFragment.split('>')[0])) {
+                        editor.gotoLine(i + 1, 0, true);
+                        editor.focus();
 
-                window.inspectorActive = false;
-
-                window.toggleInspector = function() {
-                    window.inspectorActive = !window.inspectorActive;
-
-                    const btn = document.getElementById('inspectorToggleBtn');
-                    if (btn) btn.classList.toggle('active', window.inspectorActive);
-
-                    if (typeof isPreviewActive !== 'undefined' && isPreviewActive) {
-                        const frame = document.getElementById('previewFrame');
-                        if (frame && typeof editor !== 'undefined') {
-                            const doc = frame.contentDocument || frame.contentWindow.document;
-
-                            // 1. Force a complete document wipe to kill sticky designMode and ghost event listeners
-                            doc.open();
-                            doc.write(editor.getValue());
-                            doc.close();
-
-                            // 2. Apply the correct ruleset to the freshly built document
-                            if (typeof window.injectPreviewInspectorRules === 'function') {
-                                window.injectPreviewInspectorRules(doc);
-                            }
-                        }
+                        // Visual highlight for the mapping action
+                        editor.session.addMarker(
+                            new (ace.require('ace/range').Range)(i, 0, i, 1),
+                            "ace_active-line",
+                            "fullLine"
+                        );
+                        return;
                     }
+                }
+            };
 
-                    if (typeof term !== 'undefined') {
-                        term.write(`\r\n\x1b[36m[SYSTEM] Mode: ${window.inspectorActive ? 'DESIGN': 'INTERACT'}\x1b[0m\r\n`);
-                    }
-                };
+            // Global resize dispatcher loops system geometry data down the active link
+            window.sendResize = function() {
+                if (ws.readyState === WebSocket.OPEN && typeof term !== 'undefined') {
+                    ws.send(JSON.stringify({
+                        type: 'resize',
+                        cols: term.cols || 80,
+                        rows: term.rows || 24
+                    }));
+                }
+            };
 
-                // Attach to window to guarantee scope parity
-                window.injectPreviewInspectorRules = function(targetDocument) {
-                    if (!targetDocument || !targetDocument.body) return;
+            window.Crucible = window.Crucible || {
+                modules: {
+                    history: {},
+                    diff: {}
+                }
+            };
 
-                    if (window.inspectorActive) {
-                        targetDocument.designMode = "on";
-                        targetDocument.body.contentEditable = "true";
-                    } else {
-                        targetDocument.designMode = "off";
-                        targetDocument.body.contentEditable = "false";
-                        // CRITICAL: Halt execution immediately. No styles or event listeners are injected.
+            window.Crucible.modules.history = {
+                async list(activePath) {
+                    const listContainer = document.getElementById('revisionList');
+                    if (!listContainer) return;
+
+                    if (!activePath) {
+                        listContainer.innerHTML = '<div style="padding: 15px; color: var(--ui-text-dim); text-align: center; font-size: 11px;">No active file selected in the editor. Open a file first.</div>';
                         return;
                     }
 
-                    const styleNode = targetDocument.createElement('style');
-                    styleNode.id = 'crucible-inspector-styles';
-                    styleNode.innerHTML = `
-                    *[data-crucible-inspecting="true"] {
-                    outline: 2px dashed #3498db !important;
-                    outline-offset: -2px;
-                    cursor: text !important;
-                    }
-                    `;
-                    targetDocument.head.appendChild(styleNode);
+                    listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">Scanning archives...</div>';
 
-                    targetDocument.body.addEventListener('input', () => {
-                        if (typeof editor === 'undefined' || !window.inspectorActive) return;
+                    try {
+                        const res = await fetch('/api/history/list', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                path: activePath
+                            })
+                        });
+                        const data = await res.json();
 
-                        if (typeof isSyncingFromIframe !== 'undefined') isSyncingFromIframe = true;
-
-                        const originalCode = editor.getValue();
-                        const hasHtmlWrapper = originalCode.toLowerCase().includes('<html') || originalCode.toLowerCase().includes('<body');
-
-                        let updatedContent = "";
-                        if (hasHtmlWrapper) {
-                            const clone = targetDocument.documentElement.cloneNode(true);
-                            const instStyle = clone.querySelector('#crucible-inspector-styles');
-                            if (instStyle) instStyle.remove();
-                            clone.querySelectorAll('[data-crucible-inspecting]').forEach(el => el.removeAttribute('data-crucible-inspecting'));
-                            updatedContent = clone.outerHTML;
-                        } else {
-                            const cloneBody = targetDocument.body.cloneNode(true);
-                            const instStyle = cloneBody.querySelector('#crucible-inspector-styles');
-                            if (instStyle) instStyle.remove();
-                            cloneBody.querySelectorAll('[data-crucible-inspecting]').forEach(el => el.removeAttribute('data-crucible-inspecting'));
-                            updatedContent = cloneBody.innerHTML;
-                        }
-
-                        const cursorPosition = editor.getCursorPosition();
-                        editor.setValue(updatedContent, -1);
-                        editor.moveCursorToPosition(cursorPosition);
-
-                        if (typeof isSyncingFromIframe !== 'undefined') isSyncingFromIframe = false;
-                    });
-
-                    targetDocument.body.addEventListener('click',
-                        (e) => {
-                            if (!window.inspectorActive) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const searchString = e.target.outerHTML.split('>')[0];
-                            if (typeof matchTargetNodeBackToCodeSource === 'function') {
-                                matchTargetNodeBackToCodeSource(searchString);
-                            }
-                        },
-                        true);
-
-                    targetDocument.body.addEventListener('mouseover',
-                        (e) => {
-                            if (!window.inspectorActive) return;
-                            e.target.setAttribute('data-crucible-inspecting', 'true');
-                        },
-                        true);
-
-                    targetDocument.body.addEventListener('mouseout',
-                        (e) => {
-                            if (!window.inspectorActive) return;
-                            e.target.removeAttribute('data-crucible-inspecting');
-                        },
-                        true);
-                };
-
-                // Global resize dispatcher loops system geometry data down the active link
-                window.sendResize = function() {
-                    if (ws.readyState === WebSocket.OPEN && typeof term !== 'undefined') {
-                        ws.send(JSON.stringify({
-                            type: 'resize',
-                            cols: term.cols || 80,
-                            rows: term.rows || 24
-                        }));
-                    }
-                };
-
-                window.Crucible = window.Crucible || {
-                    modules: {
-                        history: {},
-                        diff: {}
-                    }
-                };
-
-                window.Crucible.modules.history = {
-                    async list(activePath) {
-                        const listContainer = document.getElementById('revisionList');
-                        if (!listContainer) return;
-
-                        if (!activePath) {
-                            listContainer.innerHTML = '<div style="padding: 15px; color: var(--ui-text-dim); text-align: center; font-size: 11px;">No active file selected in the editor. Open a file first.</div>';
+                        if (!data.backups || data.backups.length === 0) {
+                            listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">No snapshots found.</div>';
                             return;
                         }
 
-                        listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">Scanning archives...</div>';
-
-                        try {
-                            const res = await fetch('/api/history/list', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    path: activePath
-                                })
-                            });
-                            const data = await res.json();
-
-                            if (!data.backups || data.backups.length === 0) {
-                                listContainer.innerHTML = '<div style="padding: 10px; color: var(--ui-text-dim); text-align: center;">No snapshots found.</div>';
-                                return;
-                            }
-
-                            listContainer.innerHTML = '';
-                            data.backups.forEach(backup => {
-                                const item = document.createElement('div');
-                                item.className = 'history-item';
-                                item.style.cssText = 'padding: 8px; border-bottom: 1px solid var(--ui-border-dark); cursor: pointer;';
-                                item.innerHTML = `
-                                <div style="font-size: 11px; color: var(--ui-text-main)">${backup.timestamp.replace(/_/g, ' ')}</div>
-                                <button style="margin-top: 5px; width: 100%; border: 1px solid var(--ui-accent); background: transparent; color: var(--ui-accent); cursor: pointer;">COMPARE</button>
-                                `;
-                                item.onclick = () => this.compare(activePath, backup);
-                                listContainer.appendChild(item);
-                            });
-                        } catch (e) {
-                            console.error("History list failed:", e);
-                        }
-                    },
-
-                    async compare(activePath, backupTarget) {
-                        try {
-                            const res = await fetch('/api/history/read', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    path: backupTarget.path
-                                })
-                            });
-                            const data = await res.json();
-
-                            window.launchDiffUI(activePath, backupTarget.timestamp, editor.getValue(), data.content);
-                        } catch (e) {
-                            console.error("Read snapshot failed:", e);
-                        }
-                    }
-                };
-
-                window.Crucible.modules.diff = {
-                    init(fileName, timestamp, liveText, archiveText) {
-                        window.diffState = window.diffState || {
-                            isSyncing: false,
-                            leftEd: null,
-                            rightEd: null
-                        };
-
-                        let diffContainer = document.getElementById('crucible-diff-overlay');
-                        if (diffContainer) {
-                            if (window.diffState.leftEd) window.diffState.leftEd.destroy();
-                            if (window.diffState.rightEd) window.diffState.rightEd.destroy();
-                            diffContainer.remove();
-                        }
-
-                        diffContainer = document.createElement('div');
-                        diffContainer.id = 'crucible-diff-overlay';
-                        diffContainer.style.cssText = `
-                        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                        background: var(--ui-bg-base); z-index: 9999;
-                        display: flex; flex-direction: column;
-                        `;
-                        document.body.appendChild(diffContainer);
-
-                        diffContainer.innerHTML = `
-                        <style>
-                        .diff-marker-add { background: rgba(46, 204, 113, 0.25) !important; position: absolute; z-index: 20; }
-                        .diff-marker-remove { background: rgba(231, 76, 60, 0.25) !important; position: absolute; z-index: 20; }
-                        </style>
-                        <div style="padding: 10px; background: var(--ui-bg-panel); border-bottom: 1px solid var(--ui-border-dark); display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--ui-text-bright); font-weight: bold; letter-spacing: 1px;">DIFF: ${fileName}</span>
-                        <button onclick="window.closeDiffUI()" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold;">CLOSE</button>
-                        </div>
-                        <div style="display: flex; flex: 1; overflow: hidden; min-height: 0;">
-                        <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--ui-border-dark); min-width: 0;">
-                        <div style="padding: 5px; background: var(--ui-bg-surface); text-align: center; font-size: 10px;">ARCHIVE [${timestamp}]</div>
-                        <div id="diff-left-editor" style="flex: 1;"></div>
-                        </div>
-                        <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
-                        <div style="padding: 5px; background: var(--ui-bg-surface); text-align: center; font-size: 10px; color: var(--ui-accent);">LIVE WORKSPACE</div>
-                        <div id="diff-right-editor" style="flex: 1;"></div>
-                        </div>
-                        </div>
-                        `;
-
-                        window.diffState.leftEd = ace.edit("diff-left-editor");
-                        window.diffState.rightEd = ace.edit("diff-right-editor");
-
-                        [window.diffState.leftEd,
-                            window.diffState.rightEd].forEach(ed => {
-                                ed.setTheme(editor.getTheme());
-                                ed.session.setMode(editor.session.getMode().$id);
-                                ed.setReadOnly(true);
-                                ed.setOptions({
-                                    showFoldWidgets: false, printMargin: false
-                                });
-                            });
-
-                        // BUFFER EQUALIZATION (TOTAL LENGTH FIX)
-                        const leftLines = archiveText.split(/\r\n|\r|\n/).length;
-                        const rightLines = liveText.split(/\r\n|\r|\n/).length;
-                        const maxLines = Math.max(leftLines, rightLines);
-
-                        // CRITICAL FIX: Inject a space before the newline (' \n')
-                        // so Ace Editor does not cull the trailing empty lines
-                        const padLeft = maxLines > leftLines ? ' \n'.repeat(maxLines - leftLines): '';
-                        const padRight = maxLines > rightLines ? ' \n'.repeat(maxLines - rightLines): '';
-
-                        window.diffState.leftEd.setValue(archiveText + padLeft, -1);
-                        window.diffState.rightEd.setValue(liveText + padRight, -1);
-
-                        // Standard 1:1 Scroll Sync
-                        const sync = (source, target) => {
-                            source.session.on('changeScrollTop', (pos) => {
-                                if (window.diffState.isSyncing) return;
-                                window.diffState.isSyncing = true;
-                                target.session.setScrollTop(pos);
-                                window.diffState.isSyncing = false;
-                            });
-                        };
-
-                        sync(window.diffState.leftEd,
-                            window.diffState.rightEd);
-                        sync(window.diffState.rightEd,
-                            window.diffState.leftEd);
-
-                        // Run Diff Highlight on raw text to prevent marking the blank lines
-                        if (typeof Diff !== 'undefined') {
-                            const Range = ace.require('ace/range').Range;
-                            const diffs = Diff.diffLines(archiveText, liveText);
-                            let leftRow = 0,
-                            rightRow = 0;
-                            diffs.forEach(part => {
-                                if (part.added) {
-                                    window.diffState.rightEd.session.addMarker(new Range(rightRow, 0, rightRow + part.count - 1, 1), "diff-marker-add", "fullLine");
-                                    rightRow += part.count;
-                                } else if (part.removed) {
-                                    window.diffState.leftEd.session.addMarker(new Range(leftRow, 0, leftRow + part.count - 1, 1), "diff-marker-remove", "fullLine");
-                                    leftRow += part.count;
-                                } else {
-                                    leftRow += part.count; rightRow += part.count;
-                                }
-                            });
-                        }
-                    }
-                };
-
-                window.closeDiffUI = function() {
-                    const el = document.getElementById('crucible-diff-overlay');
-                    if (el) {
-                        if (window.diffState && window.diffState.leftEd) window.diffState.leftEd.destroy();
-                        if (window.diffState && window.diffState.rightEd) window.diffState.rightEd.destroy();
-                        el.remove();
-                    }
-                };
-
-                window.launchDiffUI = window.Crucible.modules.diff.init;
-
-                // ==========================================
-                // PWA & LOCAL ASSET CACHING ENGINE
-                // ==========================================
-                if ('serviceWorker' in navigator) {
-                    window.addEventListener('load', () => {
-                        navigator.serviceWorker.register('/sw.js').then(registration => {
-                            console.log('\x1b[36m[SYSTEM] Local asset cache active. Scope: \x1b[0m' + registration.scope);
-                        }).catch(error => {
-                            console.error('[SYSTEM] Asset cache mapping failed:', error);
+                        listContainer.innerHTML = '';
+                        data.backups.forEach(backup => {
+                            const item = document.createElement('div');
+                            item.className = 'history-item';
+                            item.style.cssText = 'padding: 8px; border-bottom: 1px solid var(--ui-border-dark); cursor: pointer;';
+                            item.innerHTML = `
+                            <div style="font-size: 11px; color: var(--ui-text-main)">${backup.timestamp.replace(/_/g, ' ')}</div>
+                            <button style="margin-top: 5px; width: 100%; border: 1px solid var(--ui-accent); background: transparent; color: var(--ui-accent); cursor: pointer;">COMPARE</button>
+                            `;
+                            item.onclick = () => this.compare(activePath, backup);
+                            listContainer.appendChild(item);
                         });
-                    });
-                }
+                    } catch (e) {
+                        console.error("History list failed:", e);
+                    }
+                },
 
-            })();
-        </script>
-    </body>
+                async compare(activePath, backupTarget) {
+                    try {
+                        const res = await fetch('/api/history/read', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                path: backupTarget.path
+                            })
+                        });
+                        const data = await res.json();
+
+                        window.launchDiffUI(activePath, backupTarget.timestamp, editor.getValue(), data.content);
+                    } catch (e) {
+                        console.error("Read snapshot failed:", e);
+                    }
+                }
+            };
+
+            window.Crucible.modules.diff = {
+                init(fileName, timestamp, liveText, archiveText) {
+                    window.diffState = window.diffState || {
+                        isSyncing: false,
+                        leftEd: null,
+                        rightEd: null
+                    };
+
+                    let diffContainer = document.getElementById('crucible-diff-overlay');
+                    if (diffContainer) {
+                        if (window.diffState.leftEd) window.diffState.leftEd.destroy();
+                        if (window.diffState.rightEd) window.diffState.rightEd.destroy();
+                        diffContainer.remove();
+                    }
+
+                    diffContainer = document.createElement('div');
+                    diffContainer.id = 'crucible-diff-overlay';
+                    diffContainer.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                    background: var(--ui-bg-base); z-index: 9999;
+                    display: flex; flex-direction: column;
+                    `;
+                    document.body.appendChild(diffContainer);
+
+                    diffContainer.innerHTML = `
+                    <style>
+                    .diff-marker-add { background: rgba(46, 204, 113, 0.25) !important; position: absolute; z-index: 20; }
+                    .diff-marker-remove { background: rgba(231, 76, 60, 0.25) !important; position: absolute; z-index: 20; }
+                    </style>
+                    <div style="padding: 10px; background: var(--ui-bg-panel); border-bottom: 1px solid var(--ui-border-dark); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--ui-text-bright); font-weight: bold; letter-spacing: 1px;">DIFF: ${fileName}</span>
+                    <button onclick="window.closeDiffUI()" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold;">CLOSE</button>
+                    </div>
+                    <div style="display: flex; flex: 1; overflow: hidden; min-height: 0;">
+                    <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--ui-border-dark); min-width: 0;">
+                    <div style="padding: 5px; background: var(--ui-bg-surface); text-align: center; font-size: 10px;">ARCHIVE [${timestamp}]</div>
+                    <div id="diff-left-editor" style="flex: 1;"></div>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                    <div style="padding: 5px; background: var(--ui-bg-surface); text-align: center; font-size: 10px; color: var(--ui-accent);">LIVE WORKSPACE</div>
+                    <div id="diff-right-editor" style="flex: 1;"></div>
+                    </div>
+                    </div>
+                    `;
+
+                    window.diffState.leftEd = ace.edit("diff-left-editor");
+                    window.diffState.rightEd = ace.edit("diff-right-editor");
+
+                    [window.diffState.leftEd,
+                        window.diffState.rightEd].forEach(ed => {
+                            ed.setTheme(editor.getTheme());
+                            ed.session.setMode(editor.session.getMode().$id);
+                            ed.setReadOnly(true);
+                            ed.setOptions({
+                                showFoldWidgets: false, printMargin: false
+                            });
+                        });
+
+                    // BUFFER EQUALIZATION (TOTAL LENGTH FIX)
+                    const leftLines = archiveText.split(/\r\n|\r|\n/).length;
+                    const rightLines = liveText.split(/\r\n|\r|\n/).length;
+                    const maxLines = Math.max(leftLines, rightLines);
+
+                    // CRITICAL FIX: Inject a space before the newline (' \n')
+                    // so Ace Editor does not cull the trailing empty lines
+                    const padLeft = maxLines > leftLines ? ' \n'.repeat(maxLines - leftLines): '';
+                    const padRight = maxLines > rightLines ? ' \n'.repeat(maxLines - rightLines): '';
+
+                    window.diffState.leftEd.setValue(archiveText + padLeft, -1);
+                    window.diffState.rightEd.setValue(liveText + padRight, -1);
+
+                    // Standard 1:1 Scroll Sync
+                    const sync = (source, target) => {
+                        source.session.on('changeScrollTop', (pos) => {
+                            if (window.diffState.isSyncing) return;
+                            window.diffState.isSyncing = true;
+                            target.session.setScrollTop(pos);
+                            window.diffState.isSyncing = false;
+                        });
+                    };
+
+                    sync(window.diffState.leftEd,
+                        window.diffState.rightEd);
+                    sync(window.diffState.rightEd,
+                        window.diffState.leftEd);
+
+                    // Run Diff Highlight on raw text to prevent marking the blank lines
+                    if (typeof Diff !== 'undefined') {
+                        const Range = ace.require('ace/range').Range;
+                        const diffs = Diff.diffLines(archiveText, liveText);
+                        let leftRow = 0,
+                        rightRow = 0;
+                        diffs.forEach(part => {
+                            if (part.added) {
+                                window.diffState.rightEd.session.addMarker(new Range(rightRow, 0, rightRow + part.count - 1, 1), "diff-marker-add", "fullLine");
+                                rightRow += part.count;
+                            } else if (part.removed) {
+                                window.diffState.leftEd.session.addMarker(new Range(leftRow, 0, leftRow + part.count - 1, 1), "diff-marker-remove", "fullLine");
+                                leftRow += part.count;
+                            } else {
+                                leftRow += part.count; rightRow += part.count;
+                            }
+                        });
+                    }
+                }
+            };
+
+            window.closeDiffUI = function() {
+                const el = document.getElementById('crucible-diff-overlay');
+                if (el) {
+                    if (window.diffState && window.diffState.leftEd) window.diffState.leftEd.destroy();
+                    if (window.diffState && window.diffState.rightEd) window.diffState.rightEd.destroy();
+                    el.remove();
+                }
+            };
+
+            window.launchDiffUI = window.Crucible.modules.diff.init;
+
+            // ==========================================
+            // PWA & LOCAL ASSET CACHING ENGINE
+            // ==========================================
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js').then(registration => {
+                        console.log('\x1b[36m[SYSTEM] Local asset cache active. Scope: \x1b[0m' + registration.scope);
+                    }).catch(error => {
+                        console.error('[SYSTEM] Asset cache mapping failed:', error);
+                    });
+                });
+            }
+
+        })();
+    </script>
+
+</body>
 </html>

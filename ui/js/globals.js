@@ -14,9 +14,15 @@ let reconnectInterval = 1000;
 let maxReconnectInterval = 5000;
 let reconnectTimer;
 
+// Example for globals.js
+if (typeof window.navIndex === 'undefined') {
+    window.navIndex = 0;
+}
+
 function initTerminalSocket() {
     // Clear any existing reconnect timers
     clearTimeout(reconnectTimer);
+
 
     // Initialize the WebSocket connection (adjust the URL to match your server setup)
     const wsUrl = `ws://${window.location.host}/terminal`;
@@ -176,45 +182,46 @@ const editor = ace.edit("codeEditor");
 const outputEditor = ace.edit("outputEditor");
 
 // Initialization Fallback (Overrides immediately on loadSettings())
-[editor, outputEditor].forEach(ed => {
-    ed.setTheme("ace/theme/chaos");
-    ed.setFontSize(14);
-    ed.setOptions({
-        fixedWidthGutter: true,
-        enableBasicAutocompletion: true,
-        enableSnippets: true,
-        enableLiveAutocompletion: true,
-        wrap: "free"
+[editor,
+    outputEditor].forEach(ed => {
+        ed.setTheme("ace/theme/chaos");
+        ed.setFontSize(14);
+        ed.setOptions({
+            fixedWidthGutter: true,
+            enableBasicAutocompletion: true,
+            enableSnippets: true,
+            enableLiveAutocompletion: true,
+            wrap: "free"
+        });
+
+        // ==========================================
+        // ACE EDITOR LINTER OVERRIDES
+        // ==========================================
+        ed.session.on("changeMode", function() {
+            const mode = ed.session.getMode().$id;
+
+            // 1. Force the JS worker to accept modern ES2020+ syntax
+            if (mode === "ace/mode/javascript") {
+                setTimeout(() => {
+                    if (ed.session.$worker) {
+                        ed.session.$worker.send("changeOptions", {
+                            "esversion": 11,
+                            "esnext": true,
+                            "asi": true
+                        });
+                    }
+                },
+                    100);
+            }
+
+            // 2. Disable the broken background parser for HTML files
+            if (mode === "ace/mode/html") {
+                ed.session.setOption("useWorker", false);
+            } else {
+                ed.session.setOption("useWorker", true);
+            }
+        });
     });
-
-    // ==========================================
-    // ACE EDITOR LINTER OVERRIDES
-    // ==========================================
-    ed.session.on("changeMode", function() {
-        const mode = ed.session.getMode().$id;
-
-        // 1. Force the JS worker to accept modern ES2020+ syntax
-        if (mode === "ace/mode/javascript") {
-            setTimeout(() => {
-                if (ed.session.$worker) {
-                    ed.session.$worker.send("changeOptions", {
-                        "esversion": 11,
-                        "esnext": true,
-                        "asi": true
-                    });
-                }
-            },
-                100);
-        }
-
-        // 2. Disable the broken background parser for HTML files
-        if (mode === "ace/mode/html") {
-            ed.session.setOption("useWorker", false);
-        } else {
-            ed.session.setOption("useWorker", true);
-        }
-    });
-});
 
 editor.session.setMode("ace/mode/csharp");
 
@@ -361,10 +368,11 @@ editor.on("change", () => {
     }
 });
 
-window.addEventListener('message', (e) => {
-    if (e.data.type === 'preview-log') term.write(`\r\n\x1b[36m[LOG]\x1b[0m ${e.data.data}\r\n`);
-    if (e.data.type === 'preview-error') term.write(`\r\n\x1b[31m[ERR]\x1b[0m ${e.data.data}\r\n`);
-});
+window.addEventListener('message',
+    (e) => {
+        if (e.data.type === 'preview-log') term.write(`\r\n\x1b[36m[LOG]\x1b[0m ${e.data.data}\r\n`);
+        if (e.data.type === 'preview-error') term.write(`\r\n\x1b[31m[ERR]\x1b[0m ${e.data.data}\r\n`);
+    });
 
 window.onload = async () => {
     console.log("[BOOT 1/4] Initializing interface...");
@@ -400,6 +408,25 @@ window.onload = async () => {
         }
     } catch(e) {
         console.error("Terminal failure:", e);
+    }
+};
+
+window.CrucibleMenu = {
+    show: (e, items) => {
+        const menu = document.getElementById('crucible-context-menu') || document.createElement('div');
+        menu.id = 'crucible-context-menu';
+        menu.style.position = 'fixed';
+        menu.style.top = `${e.clientY}px`;
+        menu.style.left = `${e.clientX}px`;
+        menu.style.zIndex = '10000';
+
+        menu.innerHTML = items.map(item => `<div class="menu-item" onclick="${item.action}">${item.label}</div>`).join('');
+        document.body.appendChild(menu);
+
+        // Close on click/blur
+        window.addEventListener('click', () => menu.remove(), {
+            once: true
+        });
     }
 };
 

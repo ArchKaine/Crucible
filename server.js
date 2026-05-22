@@ -251,8 +251,8 @@ const server = http.createServer(async (req, res) => {
                 const {
                     stdout
                 } = await execPromise(`git -C "${dir}" status -s`, {
-                        env: GIT_ENV
-                    });
+                    env: GIT_ENV
+                });
                 const staged = [];
                 const unstaged = [];
                 const lines = stdout.split('\n').filter(line => line.trim() !== '');
@@ -266,10 +266,10 @@ const server = http.createServer(async (req, res) => {
                     if (statusCode[0] !== ' ' && statusCode[0] !== '?') staged.push(item);
                     if (statusCode[1] !== ' ') unstaged.push(item);
                 });
-                return sendJSON({
-                    staged,
-                    unstaged
-                });
+                    return sendJSON({
+                        staged,
+                        unstaged
+                    });
             } catch (err) {
                 return sendJSON({
                     staged: [],
@@ -306,18 +306,18 @@ const server = http.createServer(async (req, res) => {
                         GIT_NAME: data.gitName,
                         GIT_EMAIL: data.gitEmail,
                         UI_WORDWRAP: data.wordwrap.toString(),
-                        UI_AUTOFORMAT: data.autoformat.toString(),
-                        UI_COLOR_BASE: data.customColors.base,
-                        UI_COLOR_PANEL: data.customColors.panel,
-                        UI_COLOR_SURFACE: data.customColors.surface,
-                        UI_COLOR_HOVER: data.customColors.hover,
-                        UI_COLOR_BORDER_DARK: data.customColors.borderDark,
-                        UI_COLOR_BORDER_LIGHT: data.customColors.borderLight,
-                        UI_COLOR_TEXT_DIM: data.customColors.textDim,
-                        UI_COLOR_TEXT_MUTED: data.customColors.textMuted,
-                        UI_COLOR_TEXT_MAIN: data.customColors.textMain,
-                        UI_COLOR_TEXT_BRIGHT: data.customColors.textBright,
-                        UI_COLOR_ACCENT: data.customColors.accent
+               UI_AUTOFORMAT: data.autoformat.toString(),
+               UI_COLOR_BASE: data.customColors.base,
+               UI_COLOR_PANEL: data.customColors.panel,
+               UI_COLOR_SURFACE: data.customColors.surface,
+               UI_COLOR_HOVER: data.customColors.hover,
+               UI_COLOR_BORDER_DARK: data.customColors.borderDark,
+               UI_COLOR_BORDER_LIGHT: data.customColors.borderLight,
+               UI_COLOR_TEXT_DIM: data.customColors.textDim,
+               UI_COLOR_TEXT_MUTED: data.customColors.textMuted,
+               UI_COLOR_TEXT_MAIN: data.customColors.textMain,
+               UI_COLOR_TEXT_BRIGHT: data.customColors.textBright,
+               UI_COLOR_ACCENT: data.customColors.accent
                     };
                     saveEnv(envUpdates, (err) => {
                         if (err) {
@@ -387,17 +387,17 @@ const server = http.createServer(async (req, res) => {
 
                     function readAndReturnFormatted() {
                         fs.readFile(targetFile, 'utf8', (readErr,
-                            formattedContent) => {
-                            if (readErr) {
-                                return sendJSON({
-                                    success: false, error: `Buffer retrieval exception: ${readErr.message}`
-                                }, 200);
-                            }
-                            return sendJSON({
-                                success: true,
-                                content: formattedContent
-                            });
-                        });
+                                                         formattedContent) => {
+                                                             if (readErr) {
+                                                                 return sendJSON({
+                                                                     success: false, error: `Buffer retrieval exception: ${readErr.message}`
+                                                                 }, 200);
+                                                             }
+                                                             return sendJSON({
+                                                                 success: true,
+                                                                 content: formattedContent
+                                                             });
+                                                         });
                     }
                     return;
                 }
@@ -495,521 +495,521 @@ const server = http.createServer(async (req, res) => {
                         case '.rs':
                             command = 'cargo';
                             args = ['build',
-                                '--message-format=json']; // Delivers structured machine status tokens
+                            '--message-format=json']; // Delivers structured machine status tokens
                             break;
                         case '.cpp':
-                            case '.c':
-                                command = 'make'; // Assumes industrial standard build scripts exist in directory root
-                                args = [];
-                                break;
-                            case '.py':
-                                command = 'python3';
-                                args = ['-m',
-                                    'py_compile',
-                                    targetFile];
-                                break;
-                            default:
-                                return sendJSON({
-                                    error: "Unsupported compiler target profile."
-                                }, 400);
-                            }
-
-                            const {
-                                spawn
-                            } = require('child_process');
-                            const buildProcess = spawn(command, args, {
-                                cwd: targetDir, env: process.env
-                            });
-
-                            sendJSON({
-                                status: 'build_started', file: path.basename(targetFile)
-                            });
-
-                            // Handle incoming stdout data streams from the compiler
-                            buildProcess.stdout.on('data', (chunk) => {
-                                const rawOutput = chunk.toString();
-                                let percentParsed = null;
-
-                                // Extract compilation metrics (e.g., parsing "Scanning dependencies of target...", "[ 50% ] Building...")
-                                const cmakeMatch = rawOutput.match(/\[\s*(\d+)%\]/);
-                                if (cmakeMatch) {
-                                    percentParsed = parseInt(cmakeMatch[1]);
-                                }
-
-                                const packet = JSON.stringify({
-                                    type: 'build_status',
-                                    data: {
-                                        stream: 'stdout',
-                                        text: rawOutput,
-                                        percent: percentParsed
-                                    }
-                                });
-                                wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(packet));
-                            });
-
-                            // Handle incoming compiler diagnostics and failure telemetry
-                            buildProcess.stderr.on('data',
-                                (chunk) => {
-                                    const rawError = chunk.toString();
-                                    const packet = JSON.stringify({
-                                        type: 'build_status',
-                                        data: {
-                                            stream: 'stderr',
-                                            text: rawError,
-                                            percent: null
-                                        }
-                                    });
-                                    wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(packet));
-                                });
-
-                            buildProcess.on('close',
-                                (code) => {
-                                    const finalPacket = JSON.stringify({
-                                        type: 'build_complete',
-                                        data: {
-                                            success: code === 0,
-                                            exitCode: code
-                                        }
-                                    });
-                                    wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(finalPacket));
-                                });
-
-                            return;
-                    }
-
-                    if (pathname === '/api/themes') {
-                        fs.writeFile(USER_THEMES_PATH, JSON.stringify(data, null, 2), 'utf8', (err) => {
-                            if (err) {
-                                console.error(`[ERROR] Theme storage file allocation error: ${err.message}`);
-                                return sendJSON({
-                                    error: err.message
-                                }, 500);
-                            }
+                        case '.c':
+                            command = 'make'; // Assumes industrial standard build scripts exist in directory root
+                            args = [];
+                            break;
+                        case '.py':
+                            command = 'python3';
+                            args = ['-m',
+                            'py_compile',
+                            targetFile];
+                            break;
+                        default:
                             return sendJSON({
-                                status: 'success'
-                            });
-                        });
-                        return;
+                                error: "Unsupported compiler target profile."
+                            }, 400);
                     }
 
-                    if (pathname === '/api/shutdown') {
-                        sendJSON({
-                            status: 'terminating'
+                    const {
+                        spawn
+                    } = require('child_process');
+                    const buildProcess = spawn(command, args, {
+                        cwd: targetDir, env: process.env
+                    });
+
+                    sendJSON({
+                        status: 'build_started', file: path.basename(targetFile)
+                    });
+
+                    // Handle incoming stdout data streams from the compiler
+                    buildProcess.stdout.on('data', (chunk) => {
+                        const rawOutput = chunk.toString();
+                        let percentParsed = null;
+
+                        // Extract compilation metrics (e.g., parsing "Scanning dependencies of target...", "[ 50% ] Building...")
+                        const cmakeMatch = rawOutput.match(/\[\s*(\d+)%\]/);
+                        if (cmakeMatch) {
+                            percentParsed = parseInt(cmakeMatch[1]);
+                        }
+
+                        const packet = JSON.stringify({
+                            type: 'build_status',
+                            data: {
+                                stream: 'stdout',
+                                text: rawOutput,
+                                percent: percentParsed
+                            }
                         });
-                        const {
-                            spawn
+                        wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(packet));
+                    });
+
+                    // Handle incoming compiler diagnostics and failure telemetry
+                    buildProcess.stderr.on('data',
+                                           (chunk) => {
+                                               const rawError = chunk.toString();
+                                               const packet = JSON.stringify({
+                                                   type: 'build_status',
+                                                   data: {
+                                                       stream: 'stderr',
+                                                       text: rawError,
+                                                       percent: null
+                                                   }
+                                               });
+                                               wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(packet));
+                                           });
+
+                    buildProcess.on('close',
+                                    (code) => {
+                                        const finalPacket = JSON.stringify({
+                                            type: 'build_complete',
+                                            data: {
+                                                success: code === 0,
+                                                exitCode: code
+                                            }
+                                        });
+                                        wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(finalPacket));
+                                    });
+
+                    return;
+                }
+
+                if (pathname === '/api/themes') {
+                    fs.writeFile(USER_THEMES_PATH, JSON.stringify(data, null, 2), 'utf8', (err) => {
+                        if (err) {
+                            console.error(`[ERROR] Theme storage file allocation error: ${err.message}`);
+                            return sendJSON({
+                                error: err.message
+                            }, 500);
+                        }
+                        return sendJSON({
+                            status: 'success'
+                        });
+                    });
+                    return;
+                }
+
+                if (pathname === '/api/shutdown') {
+                    sendJSON({
+                        status: 'terminating'
+                    });
+                    const {
+                        spawn
                     } = require('child_process');
                     const child = spawn('bash', ['launcher.sh', 'stop'], {
                         detached: true,
                         stdio: 'ignore',
                         cwd: process.cwd()
-                });
-                child.unref();
-                return;
-            }
-
-            if (pathname === '/api/index') {
-                const dir = process.cwd();
-                forgeFS.indexFiles(dir, getEmbedding, (progress) => {
-                    const telemetry = JSON.stringify({
-                        type: 'progress', data: progress
                     });
-                    wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(telemetry));
-                }, {
-                    selectedFiles: data.selectedFiles
-                }).then(() => {
-                    loadVectorCache(); // Hot-reload cache with newly generated indices
-                    const final = JSON.stringify({
-                        type: 'progress', data: {
-                            percent: 100, file: 'STATIONARY'
-                        }
-                    });
-                    wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(final));
-                });
-                return sendJSON({
-                    status: 'indexing_started'
-                });
-            }
-
-            if (pathname === '/api/write') {
-                forgeFS.writeFile(data.path, data.content);
-                return sendJSON({
-                    status: 'success'
-                });
-            }
-
-            if (pathname === '/api/create') {
-                try {
-                    forgeFS.createFile(data.path);
-                    return sendJSON({
-                        status: 'created'
-                });
-            } catch (err) {
-                return sendJSON({
-                    success: false, error: err.message
-                }, 200);
-            }
-        }
-
-            if (pathname === '/api/delete') {
-                try {
-                    forgeFS.deletePath(data.path);
-                    return sendJSON({
-                        status: 'deleted'
-                    });
-                } catch (err) {
-                    return sendJSON({
-                        success: false, error: err.message
-                    }, 200);
+                    child.unref();
+                    return;
                 }
-            }
 
-            if (pathname === '/api/rename') {
-                forgeFS.renamePath(data.oldPath, data.newPath);
-                return sendJSON({
-                    status: 'renamed'
-                });
-            }
-
-            if (pathname === '/api/mkdir') {
-                try {
-                    forgeFS.mkdir(data.path);
-                    return sendJSON({
-                        status: 'directory_created'
+                if (pathname === '/api/index') {
+                    const dir = process.cwd();
+                    forgeFS.indexFiles(dir, getEmbedding, (progress) => {
+                        const telemetry = JSON.stringify({
+                            type: 'progress', data: progress
+                        });
+                        wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(telemetry));
+                    }, {
+                        selectedFiles: data.selectedFiles
+                    }).then(() => {
+                        loadVectorCache(); // Hot-reload cache with newly generated indices
+                        const final = JSON.stringify({
+                            type: 'progress', data: {
+                                percent: 100, file: 'STATIONARY'
+                            }
+                        });
+                        wss.clients.forEach(c => c.readyState === WebSocket.OPEN && c.send(final));
                     });
-                } catch (err) {
                     return sendJSON({
-                        success: false, error: err.message
-                    }, 200);
+                        status: 'indexing_started'
+                    });
                 }
-            }
 
-            if (pathname === '/api/git/config') {
-                const targetDir = data.dir || process.cwd();
-                try {
-                    if (data.name) await execPromise(`git -C "${targetDir}" config user.name "${data.name}"`, {
-                        env: GIT_ENV
-                    });
-                    if (data.email) await execPromise(`git -C "${targetDir}" config user.email "${data.email}"`, {
-                        env: GIT_ENV
-                    });
+                if (pathname === '/api/write') {
+                    forgeFS.writeFile(data.path, data.content);
                     return sendJSON({
-                        success: true
+                        status: 'success'
                     });
-                } catch (err) {
-                    return sendJSON({
-                        success: false,
-                        error: err.stderr ? err.stderr.toString().trim(): err.message
-                    }, 200);
                 }
-            }
 
-            if (pathname === '/api/git/remote') {
-                const targetDir = data.dir || process.cwd();
-                try {
+                if (pathname === '/api/create') {
                     try {
-                        await execPromise(`git -C "${targetDir}" remote get-url origin`, {
-                            env: GIT_ENV
-                    });
-                    await execPromise(`git -C "${targetDir}" remote set-url origin "${data.url}"`, {
-                        env: GIT_ENV
-                    });
-                } catch (e) {
-                    await execPromise(`git -C "${targetDir}" remote add origin "${data.url}"`, {
-                        env: GIT_ENV
-                    });
-                }
-                return sendJSON({
-                    success: true
-                });
-            } catch (err) {
-                return sendJSON({
-                    success: false,
-                    error: err.stderr ? err.stderr.toString().trim(): err.message
-                }, 200);
-            }
-        }
-
-        if (pathname === '/api/git/action') {
-            const targetDir = data.dir || process.cwd();
-            let command = '';
-            switch (data.action) {
-                case 'init': command = `git -C "${targetDir}" init`; break;
-                case 'stage': command = `git -C "${targetDir}" add "${data.file}"`; break;
-                case 'unstage': command = `git -C "${targetDir}" reset HEAD "${data.file}"`; break;
-                case 'add-all': command = `git -C "${targetDir}" add .`; break;
-                case 'commit':
-                    const cleanMsg = data.message ? data.message.replace(/"/g, '\\"'): 'Update';
-                    command = `git -C "${targetDir}" commit -m "${cleanMsg}"`;
-                    break;
-                case 'push': command = `git -C "${targetDir}" push -u origin HEAD`; break;
-                case 'pull': command = `git -C "${targetDir}" pull`; break;
-                default:
-                    return sendJSON({
-                        error: "Unknown action directive."
-                    }, 400);
-                }
-
-                try {
-                    const {
-                        stdout,
-                        stderr
-                    } = await execPromise(command, {
-                            env: GIT_ENV
+                        forgeFS.createFile(data.path);
+                        return sendJSON({
+                            status: 'created'
                         });
-                    return sendJSON({
-                        success: true,
-                        output: stdout || stderr
-                    });
-                } catch (gitError) {
-                    // Intercept the rejection and return a clean 200 payload containing the true Git failure description
-                    return sendJSON({
-                        success: false,
-                        error: gitError.stderr ? gitError.stderr.toString().trim(): gitError.message
-                    }, 200);
-                }
-            }
-
-            if (pathname === '/api/lint') {
-                const targetFile = data.path;
-                const ext = path.extname(targetFile);
-
-                if (ext !== '.py') {
-                    return sendJSON({
-                        success: true, markers: []
-                    });
-                }
-
-                const {
-                    exec
-                } = require('child_process');
-                // Executes the native compiler checker to catch structural flaws before execution
-                exec(`python3 -m py_compile "${targetFile}"`, {
-                    env: process.env
-                }, (err, stdout, stderr) => {
-                    const markers = [];
-
-                    if (err && stderr) {
-                        const rawLines = stderr.split('\n');
-                        let lineNum = 1;
-                        let errorMessage = "Python syntax error encountered.";
-
-                        // Extract exact line indices from the compiler traceback stream
-                        const lineMatch = stderr.match(/line (\d+)/);
-                        if (lineMatch) {
-                            lineNum = parseInt(lineMatch[1]);
-                        }
-
-                        // Isolate the root exception description line
-                        const exceptionLine = rawLines.find(l => l.match(/^\w+Error:/) || l.includes('SyntaxError'));
-                        if (exceptionLine) {
-                            errorMessage = exceptionLine.trim();
-                        }
-
-                        markers.push({
-                            row: lineNum - 1, // Normalizes coordinate mapping to match Ace Editor base-0 index
-                            column: 0,
-                            text: errorMessage,
-                            type: "error"
-                        });
+                    } catch (err) {
+                        return sendJSON({
+                            success: false, error: err.message
+                        }, 200);
                     }
+                }
 
+                if (pathname === '/api/delete') {
+                    try {
+                        forgeFS.deletePath(data.path);
+                        return sendJSON({
+                            status: 'deleted'
+                        });
+                    } catch (err) {
+                        return sendJSON({
+                            success: false, error: err.message
+                        }, 200);
+                    }
+                }
+
+                if (pathname === '/api/rename') {
+                    forgeFS.renamePath(data.oldPath, data.newPath);
                     return sendJSON({
-                        success: markers.length === 0,
-                        markers: markers
+                        status: 'renamed'
                     });
-                });
-                return;
-            }
+                }
 
-            if (pathname === '/api/git/auth') {
-                const targetDir = data.dir || process.cwd();
-                try {
-                    const {
-                        stdout: remoteUrl
-                    } = await execPromise(`git -C "${targetDir}" remote get-url origin`, {
+                if (pathname === '/api/mkdir') {
+                    try {
+                        forgeFS.mkdir(data.path);
+                        return sendJSON({
+                            status: 'directory_created'
+                        });
+                    } catch (err) {
+                        return sendJSON({
+                            success: false, error: err.message
+                        }, 200);
+                    }
+                }
+
+                if (pathname === '/api/git/config') {
+                    const targetDir = data.dir || process.cwd();
+                    try {
+                        if (data.name) await execPromise(`git -C "${targetDir}" config user.name "${data.name}"`, {
                             env: GIT_ENV
                         });
-                    let cleanUrl = remoteUrl.trim().replace(/https:\/\/[^@]+@/, 'https://');
-                    if (cleanUrl.startsWith('https://')) {
-                        const githubUser = cleanUrl.split('/')[3];
-                        const authUrl = cleanUrl.replace('https://', `https://${githubUser}:${data.token}@`);
-                        await execPromise(`git -C "${targetDir}" remote set-url origin "${authUrl}"`, {
+                        if (data.email) await execPromise(`git -C "${targetDir}" config user.email "${data.email}"`, {
                             env: GIT_ENV
                         });
                         return sendJSON({
                             success: true
                         });
+                    } catch (err) {
+                        return sendJSON({
+                            success: false,
+                            error: err.stderr ? err.stderr.toString().trim(): err.message
+                        }, 200);
                     }
-                    return sendJSON({
-                        error: "Remote is not HTTPS."
-                    }, 400);
-                } catch (err) {
-                    return sendJSON({
-                        success: false,
-                        error: err.stderr ? err.stderr.toString().trim(): err.message
-                    }, 200);
                 }
-            }
 
-            if (pathname === '/api/ai') {
-                const query = data.history[data.history.length - 1].content;
-                let context = "";
-
-                if (vectorCache.length > 0) {
+                if (pathname === '/api/git/remote') {
+                    const targetDir = data.dir || process.cwd();
                     try {
-                        const qVec = await getEmbedding(query);
-                        let matches = [];
-
-                        for (const entry of vectorCache) {
-                            const score = cosineSimilarity(qVec, entry.vector);
-                            matches.push({
-                                path: entry.path, text: entry.text, score
+                        try {
+                            await execPromise(`git -C "${targetDir}" remote get-url origin`, {
+                                env: GIT_ENV
                             });
-                            if (matches.length > 50) {
-                                matches.sort((a, b) => b.score - a.score);
-                                matches = matches.slice(0, 10);
-                            }
+                            await execPromise(`git -C "${targetDir}" remote set-url origin "${data.url}"`, {
+                                env: GIT_ENV
+                            });
+                        } catch (e) {
+                            await execPromise(`git -C "${targetDir}" remote add origin "${data.url}"`, {
+                                env: GIT_ENV
+                            });
                         }
-                        matches.sort((a, b) => b.score - a.score);
-                        context = "\nTECHNICAL DATA:\n" + matches.slice(0, 5).map(m => `[FILE: ${m.path}]\n${m.text}`).join('\n\n');
-                    } catch (e) {
-                        console.error("In-memory tracking evaluation failure:", e.message);
+                        return sendJSON({
+                            success: true
+                        });
+                    } catch (err) {
+                        return sendJSON({
+                            success: false,
+                            error: err.stderr ? err.stderr.toString().trim(): err.message
+                        }, 200);
                     }
                 }
 
-                const messages = [{
-                    role: "system",
-                    content: systemContent + context
-                },
-                    ...data.history
-                ];
-                const aiReq = http.request({
-                    hostname: '127.0.0.1', port: LMS_PORT, path: '/v1/chat/completions', method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
+                if (pathname === '/api/git/action') {
+                    const targetDir = data.dir || process.cwd();
+                    let command = '';
+                    switch (data.action) {
+                        case 'init': command = `git -C "${targetDir}" init`; break;
+                        case 'stage': command = `git -C "${targetDir}" add "${data.file}"`; break;
+                        case 'unstage': command = `git -C "${targetDir}" reset HEAD "${data.file}"`; break;
+                        case 'add-all': command = `git -C "${targetDir}" add .`; break;
+                        case 'commit':
+                            const cleanMsg = data.message ? data.message.replace(/"/g, '\\"'): 'Update';
+                            command = `git -C "${targetDir}" commit -m "${cleanMsg}"`;
+                            break;
+                        case 'push': command = `git -C "${targetDir}" push -u origin HEAD`; break;
+                        case 'pull': command = `git -C "${targetDir}" pull`; break;
+                        default:
+                            return sendJSON({
+                                error: "Unknown action directive."
+                            }, 400);
                     }
-                }, (aiRes) => {
-                    let d = '';
-                    aiRes.on('data', chunk => d += chunk);
-                    aiRes.on('end', () => sendJSON(JSON.parse(d)));
-                });
-                aiReq.write(JSON.stringify({
-                    model: CHAT_MODEL, messages, temperature: 0.1
-                }));
-                aiReq.end();
-                return;
-            }
 
-            if (pathname === '/api/shadow-test') {
-                try {
-                    const shadowPath = path.join('/tmp', 'crucible_shadow');
-                    if (!fs.existsSync(shadowPath)) fs.mkdirSync(shadowPath, {
-                        recursive: true
-                    });
-                    const tempFile = path.join(shadowPath, path.basename(data.path));
-                    forgeFS.writeFile(tempFile, data.content);
-                    const ext = path.extname(tempFile);
-                    let status = "Verification Success";
-                    let error = null;
                     try {
-                        switch (ext) {
-                            case '.js':
-                                require('child_process').execSync(`node --check ${tempFile}`, {
-                                    stdio: 'pipe'
+                        const {
+                            stdout,
+                            stderr
+                        } = await execPromise(command, {
+                            env: GIT_ENV
+                        });
+                        return sendJSON({
+                            success: true,
+                            output: stdout || stderr
+                        });
+                    } catch (gitError) {
+                        // Intercept the rejection and return a clean 200 payload containing the true Git failure description
+                        return sendJSON({
+                            success: false,
+                            error: gitError.stderr ? gitError.stderr.toString().trim(): gitError.message
+                        }, 200);
+                    }
+                }
+
+                if (pathname === '/api/lint') {
+                    const targetFile = data.path;
+                    const ext = path.extname(targetFile);
+
+                    if (ext !== '.py') {
+                        return sendJSON({
+                            success: true, markers: []
+                        });
+                    }
+
+                    const {
+                        exec
+                    } = require('child_process');
+                    // Executes the native compiler checker to catch structural flaws before execution
+                    exec(`python3 -m py_compile "${targetFile}"`, {
+                        env: process.env
+                    }, (err, stdout, stderr) => {
+                        const markers = [];
+
+                        if (err && stderr) {
+                            const rawLines = stderr.split('\n');
+                            let lineNum = 1;
+                            let errorMessage = "Python syntax error encountered.";
+
+                            // Extract exact line indices from the compiler traceback stream
+                            const lineMatch = stderr.match(/line (\d+)/);
+                            if (lineMatch) {
+                                lineNum = parseInt(lineMatch[1]);
+                            }
+
+                            // Isolate the root exception description line
+                            const exceptionLine = rawLines.find(l => l.match(/^\w+Error:/) || l.includes('SyntaxError'));
+                            if (exceptionLine) {
+                                errorMessage = exceptionLine.trim();
+                            }
+
+                            markers.push({
+                                row: lineNum - 1, // Normalizes coordinate mapping to match Ace Editor base-0 index
+                                column: 0,
+                                text: errorMessage,
+                                type: "error"
+                            });
+                        }
+
+                        return sendJSON({
+                            success: markers.length === 0,
+                            markers: markers
+                        });
+                    });
+                    return;
+                }
+
+                if (pathname === '/api/git/auth') {
+                    const targetDir = data.dir || process.cwd();
+                    try {
+                        const {
+                            stdout: remoteUrl
+                        } = await execPromise(`git -C "${targetDir}" remote get-url origin`, {
+                            env: GIT_ENV
+                        });
+                        let cleanUrl = remoteUrl.trim().replace(/https:\/\/[^@]+@/, 'https://');
+                        if (cleanUrl.startsWith('https://')) {
+                            const githubUser = cleanUrl.split('/')[3];
+                            const authUrl = cleanUrl.replace('https://', `https://${githubUser}:${data.token}@`);
+                            await execPromise(`git -C "${targetDir}" remote set-url origin "${authUrl}"`, {
+                                env: GIT_ENV
+                            });
+                            return sendJSON({
+                                success: true
+                            });
+                        }
+                        return sendJSON({
+                            error: "Remote is not HTTPS."
+                        }, 400);
+                    } catch (err) {
+                        return sendJSON({
+                            success: false,
+                            error: err.stderr ? err.stderr.toString().trim(): err.message
+                        }, 200);
+                    }
+                }
+
+                if (pathname === '/api/ai') {
+                    const query = data.history[data.history.length - 1].content;
+                    let context = "";
+
+                    if (vectorCache.length > 0) {
+                        try {
+                            const qVec = await getEmbedding(query);
+                            let matches = [];
+
+                            for (const entry of vectorCache) {
+                                const score = cosineSimilarity(qVec, entry.vector);
+                                matches.push({
+                                    path: entry.path, text: entry.text, score
                                 });
-                                break;
-                            case '.rs':
-                                require('child_process').execSync(`rustc --color=never --out-dir ${shadowPath} ${tempFile}`, {
-                                    stdio: 'pipe'
-                                });
-                                break;
-                            case '.py':
-                                require('child_process').execSync(`python3 -m py_compile ${tempFile}`, {
-                                    stdio: 'pipe'
-                                });
-                                break;
-                            case '.cs':
-                                require('child_process').execSync(`dotnet build /p:OutputPath=${shadowPath} ${tempFile}`, {
-                                    stdio: 'pipe'
-                                });
-                                break;
-                            case '.html':
+                                if (matches.length > 50) {
+                                    matches.sort((a, b) => b.score - a.score);
+                                    matches = matches.slice(0, 10);
+                                }
+                            }
+                            matches.sort((a, b) => b.score - a.score);
+                            context = "\nTECHNICAL DATA:\n" + matches.slice(0, 5).map(m => `[FILE: ${m.path}]\n${m.text}`).join('\n\n');
+                        } catch (e) {
+                            console.error("In-memory tracking evaluation failure:", e.message);
+                        }
+                    }
+
+                    const messages = [{
+                        role: "system",
+                        content: systemContent + context
+                    },
+                    ...data.history
+                    ];
+                    const aiReq = http.request({
+                        hostname: '127.0.0.1', port: LMS_PORT, path: '/v1/chat/completions', method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }, (aiRes) => {
+                        let d = '';
+                        aiRes.on('data', chunk => d += chunk);
+                        aiRes.on('end', () => sendJSON(JSON.parse(d)));
+                    });
+                    aiReq.write(JSON.stringify({
+                        model: CHAT_MODEL, messages, temperature: 0.1
+                    }));
+                    aiReq.end();
+                    return;
+                }
+
+                if (pathname === '/api/shadow-test') {
+                    try {
+                        const shadowPath = path.join('/tmp', 'crucible_shadow');
+                        if (!fs.existsSync(shadowPath)) fs.mkdirSync(shadowPath, {
+                            recursive: true
+                        });
+                        const tempFile = path.join(shadowPath, path.basename(data.path));
+                        forgeFS.writeFile(tempFile, data.content);
+                        const ext = path.extname(tempFile);
+                        let status = "Verification Success";
+                        let error = null;
+                        try {
+                            switch (ext) {
+                                case '.js':
+                                    require('child_process').execSync(`node --check ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.rs':
+                                    require('child_process').execSync(`rustc --color=never --out-dir ${shadowPath} ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.py':
+                                    require('child_process').execSync(`python3 -m py_compile ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.cs':
+                                    require('child_process').execSync(`dotnet build /p:OutputPath=${shadowPath} ${tempFile}`, {
+                                        stdio: 'pipe'
+                                    });
+                                    break;
+                                case '.html':
                                 case '.css':
-                                    case '.json':
-                                        status = "Verification Skipped (Static File)";
-                                        break;
-                                    default:
-                                        status = "Unverified (Unknown Extension)";
-                                    }
-                            } catch (e) {
-                                status = "Verification Failed";
-                                error = e.stderr ? e.stderr.toString(): e.message;
+                                case '.json':
+                                    status = "Verification Skipped (Static File)";
+                                    break;
+                                default:
+                                    status = "Unverified (Unknown Extension)";
+                            }
+                        } catch (e) {
+                            status = "Verification Failed";
+                            error = e.stderr ? e.stderr.toString(): e.message;
                         }
                         return sendJSON({
                             status, error
-                    });
-                } catch (outerErr) {
-                    return sendJSON({
-                        status: "Verification Failed",
-                        error: `System allocation exception: ${outerErr.message}`
-                    }, 200);
+                        });
+                    } catch (outerErr) {
+                        return sendJSON({
+                            status: "Verification Failed",
+                            error: `System allocation exception: ${outerErr.message}`
+                        }, 200);
+                    }
                 }
-            }
 
-            // Fallback catch boundary inside the async post block for unmapped POST routes
-            if (!res.writableEnded) {
-                return sendJSON({
-                    error: "Endpoint not found"
-                }, 404);
-            }
+                // Fallback catch boundary inside the async post block for unmapped POST routes
+                if (!res.writableEnded) {
+                    return sendJSON({
+                        error: "Endpoint not found"
+                    }, 404);
+                }
 
-        } catch (e) {
-            sendJSON({
-                error: e.stderr || e.message
-            }, 500);
-        }
-    });
-    return;
-}
+            } catch (e) {
+                sendJSON({
+                    error: e.stderr || e.message
+                }, 500);
+            }
+        });
+        return;
+    }
 }); // END HTTP SERVER
 
 // --- TOP-LEVEL WEBSOCKET & LISTEN BINDINGS ---
 const wss = new WebSocket.Server({
-server
+    server
 });
 
 wss.on('connection', (ws) => {
-const ptyProcess = pty.spawn('bash',
-[],
-{
-name: 'xterm-256color',
-cols: 80,
-rows: 24,
-cwd: process.cwd(),
-env: process.env
-});
+    const ptyProcess = pty.spawn('bash',
+                                 [],
+                                 {
+                                     name: 'xterm-256color',
+                                     cols: 80,
+                                     rows: 24,
+                                     cwd: process.cwd(),
+                                 env: process.env
+                                 });
 
-ptyProcess.onData((data) => {
-if (ws.readyState === WebSocket.OPEN) ws.send(data);
-});
+    ptyProcess.onData((data) => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(data);
+    });
 
-ws.on('message',
-(m) => {
-try {
-const msg = JSON.parse(m);
-if (msg.type === 'input') ptyProcess.write(msg.data);
-if (msg.type === 'resize') ptyProcess.resize(msg.cols, msg.rows);
-} catch (e) {
-ptyProcess.write(m);
-}
-});
+        ws.on('message',
+              (m) => {
+                  try {
+                      const msg = JSON.parse(m);
+                      if (msg.type === 'input') ptyProcess.write(msg.data);
+                      if (msg.type === 'resize') ptyProcess.resize(msg.cols, msg.rows);
+                  } catch (e) {
+                      ptyProcess.write(m);
+                  }
+              });
 
-ws.on('close',
-() => ptyProcess.kill());
+        ws.on('close',
+              () => ptyProcess.kill());
 });
 
 server.listen(PORT, () => {
-loadVectorCache(); // Hydrate the memory space before server starts accepting traffic
-console.log(`[Crucible] operational: http://localhost:${PORT}`);
+    loadVectorCache(); // Hydrate the memory space before server starts accepting traffic
+    console.log(`[Crucible] operational: http://localhost:${PORT}`);
 });

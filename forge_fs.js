@@ -58,6 +58,7 @@ module.exports = {
         return fs.readFileSync(securePath, 'utf8');
     },
 
+    // --- ATOMIC WRITE ARCHITECTURE ---
     writeFile: (targetPath, content) => {
         const securePath = module.exports.validatePath(targetPath);
         const parentDir = path.dirname(securePath);
@@ -68,7 +69,23 @@ module.exports = {
                 recursive: true
             });
         }
-        fs.writeFileSync(securePath, content);
+
+        // Generate isolated temporary file marker
+        const tempPath = `${securePath}.${Date.now()}.tmp`;
+
+        try {
+            // Write buffer to temporary file
+            fs.writeFileSync(tempPath, content, 'utf8');
+
+            // Execute OS-level atomic metadata swap
+            fs.renameSync(tempPath, securePath);
+        } catch (err) {
+            // Purge temporary file on write failure
+            if (fs.existsSync(tempPath)) {
+                fs.unlinkSync(tempPath);
+            }
+            throw new Error(`Atomic write sequence failed for ${securePath}: ${err.message}`);
+        }
     },
 
     createFile: (targetPath) => {
